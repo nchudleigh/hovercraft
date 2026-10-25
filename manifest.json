@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Hovercraft",
+  "version": "2.0.0",
+  "description": "Replaces X's profile hover card with an instant one that glides between profiles.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "css": [
+        "card.css"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "js": [
+        "card.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}

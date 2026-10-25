@@ -1,0 +1,2 @@
+/* Hide X's native hover card; card.js draws its own. */
+[data-testid="HoverCard"] { display: none !important; }
