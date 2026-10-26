@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Hovercraft",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Replaces X's profile hover card with an instant one that glides between profiles.",
   "content_scripts": [
     {

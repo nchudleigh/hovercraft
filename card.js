@@ -244,6 +244,12 @@
 
   function profileLink(target) {
     if (!(target instanceof Element) || target === host) return null;
+    // The bottom-left account switcher is a button, not a link; use the viewer's handle.
+    const switcher = target.closest('[data-testid="SideNav_AccountSwitcher_Button"]');
+    if (switcher) {
+      const me = document.querySelector('[data-testid="AppTabBar_Profile_Link"]')?.getAttribute('href')?.slice(1);
+      return me ? { link: switcher, handle: me.toLowerCase() } : null;
+    }
     const a = target.closest('a[href^="/"]');
     const m = a?.getAttribute('href').match(/^\/(\w{1,15})\/?$/);
     if (!m || RESERVED.has(m[1].toLowerCase())) return null;
@@ -300,6 +306,8 @@
   });
 
   addEventListener('scroll', () => state.visible && hide(), { capture: true, passive: true });
+  // Clicking anything outside the card (e.g. opening the account menu) closes it.
+  addEventListener('mousedown', (e) => state.visible && e.target !== host && hide(), true);
 
   // Same-tab links go through X's router instead of a full page load.
   root.addEventListener('click', (e) => {
