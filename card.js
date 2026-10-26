@@ -2,11 +2,12 @@
 (() => {
   const CARD_WIDTH = 300;
   const GAP = 8;
-  const GLIDE = '200ms cubic-bezier(0.215, 0.61, 0.355, 1)'; // ease-out cubic
+  const EASE_OUT_CUBIC = 'cubic-bezier(0.215, 0.61, 0.355, 1)';
+  const GLIDE = `200ms ${EASE_OUT_CUBIC}`;
   const HIDE_GRACE_MS = 100; // only while crossing to the card or a neighboring profile
   const FIRST_REVEAL_MS = 150; // slight delay before the first card; switches stay instant
   const WARM_MS = 300; // re-hover this soon after a hide counts as a switch
-  const HOLD_MS = 2000; // press and hold a profile or the card this long to follow
+  const HOLD_MS = 1000; // press and hold a profile or the card this long to follow
   const NEAR_PX = 16; // gap around the anchor that still counts as "between profiles"
   const FETCH_TIMEOUT_MS = 4000; // give up on the skeleton and show what we have
   const RESERVED = new Set([
@@ -422,12 +423,14 @@
 
   const followButton = () => cardEl.querySelector('[data-follow]');
 
-  // Linear while held: the fill shows time passing.
   function fillButton(elapsed) {
     const anim = followButton()?.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
-      { duration: HOLD_MS, easing: 'linear', fill: 'forwards', pseudoElement: '::before' });
+      { duration: HOLD_MS, easing: EASE_OUT_CUBIC, fill: 'forwards', pseudoElement: '::before' });
     if (anim) anim.currentTime = elapsed;
   }
+
+  // Fill fraction at time t, so a cancel drains from where the eased fill actually is.
+  const fillAt = (t) => 1 - (1 - t) ** 3;
 
   function startHold(e) {
     const u = state.user;
@@ -448,14 +451,13 @@
     toggleFollow();
   }
 
-  // Cancel is fast and ease-out, unlike the slow linear fill.
   function cancelHold() {
     if (!hold) return;
     clearTimeout(hold.timer);
-    const p = Math.min(1, (performance.now() - hold.start) / HOLD_MS);
+    const p = fillAt(Math.min(1, (performance.now() - hold.start) / HOLD_MS));
     hold = null;
     followButton()?.animate([{ transform: `scaleX(${p})` }, { transform: 'scaleX(0)' }],
-      { duration: 200, easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)', pseudoElement: '::before' });
+      { duration: 200, easing: EASE_OUT_CUBIC, pseudoElement: '::before' });
   }
 
   addEventListener('mouseup', () => {
