@@ -1,4 +1,4 @@
-// Mirrors the popup toggle onto <html> so card.js and card.css (page world) can see it.
+// Mirrors the popup toggle onto <html> so card.js, card.css and video.js can see it.
 const apply = (enabled) => (document.documentElement.dataset.hovercraft = enabled === false ? 'off' : 'on');
 
 chrome.storage.local.get('enabled', ({ enabled }) => apply(enabled));
