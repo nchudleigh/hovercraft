@@ -23,7 +23,9 @@ The card shows the avatar, a Follow button, name and verified badge, "Follows yo
 
 Open source: https://github.com/nchudleigh/hovercraft
 
-**Screenshots:** 1280×800 or 640×400, at least one. Take them on X with the card open.
+**Screenshot:** `docs/store/screenshot-1280x800.png`
+
+**Small promo tile (440×280):** `docs/store/promo-440x280.png`
 
 ## Privacy practices
 
