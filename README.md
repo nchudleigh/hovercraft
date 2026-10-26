@@ -33,6 +33,10 @@ Hovercraft replaces it with a card that keeps up with your mouse.
 
 ## Install
 
+Get it from the [Chrome Web Store](https://chromewebstore.google.com/detail/hovercraft/pbemffbaccogejhogjkehhaocjehdiek). Store installs update automatically.
+
+To run from source instead:
+
 1. Clone this repo, or download it as a ZIP and unzip it.
 2. Open `chrome://extensions` and turn on **Developer mode**.
 3. Click **Load unpacked** and pick the repo folder.
