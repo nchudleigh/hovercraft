@@ -88,6 +88,7 @@
       verifiedType: u.verification?.verified_type || l.verified_type,
       iFollow: o.following ?? !!(u.relationship_perspectives?.following ?? l.following),
       followsMe: !!(u.relationship_perspectives?.followed_by ?? l.followed_by),
+      canDM: u.dm_permissions?.can_dm ?? l.can_dm,
     };
   }
 
@@ -208,6 +209,11 @@
     .sk-line { height:12px; margin-top:8px; }
     .sk-stats { height:14px; width:60%; margin-top:16px; }
     .btn[disabled] { opacity:.5; cursor:default; }
+    .actions { display:flex; gap:8px; }
+    .icon-btn { width:36px; height:36px; box-sizing:border-box; border:1px solid var(--line); border-radius:50%;
+      display:flex; align-items:center; justify-content:center; color:var(--fg); }
+    .icon-btn:hover { background:rgba(127,127,127,.1); text-decoration:none; }
+    .icon-btn svg { width:20px; height:20px; fill:currentColor; }
     @keyframes pulse { 50% { opacity:.5; } }
   </style><div class="card"></div>`;
   const cardEl = root.querySelector('.card');
@@ -215,6 +221,7 @@
   document.documentElement ? mount() : document.addEventListener('DOMContentLoaded', mount);
 
   const BADGE = 'M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z';
+  const MAIL = 'M1.998 5.5c0-1.381 1.119-2.5 2.5-2.5h15c1.381 0 2.5 1.119 2.5 2.5v13c0 1.381-1.119 2.5-2.5 2.5h-15c-1.381 0-2.5-1.119-2.5-2.5v-13zm2.5-.5c-.276 0-.5.224-.5.5v2.764l8 3.638 8-3.636V5.5c0-.276-.224-.5-.5-.5h-15zm15.5 5.463l-8 3.636-8-3.638V18.5c0 .276.224.5.5.5h15c.276 0 .5-.224.5-.5v-8.037z';
   const BADGE_COLOR = { Business: '#e2b719', Government: '#829aab' };
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -263,7 +270,10 @@
     cardEl.innerHTML = `
       <div class="top">
         <a href="/${esc(u.screenName)}" data-nav>${avatar}</a>
-        <button class="btn${u.iFollow ? ' on' : ''}" data-follow${u.id ? '' : ' disabled'}>${btn}</button>
+        <div class="actions">
+          ${u.id && !u.loading && u.canDM !== false ? `<a class="icon-btn" href="/messages/compose?recipient_id=${esc(u.id)}" data-nav title="Message"><svg viewBox="0 0 24 24"><path d="${MAIL}"/></svg></a>` : ''}
+          <button class="btn${u.iFollow ? ' on' : ''}" data-follow${u.id ? '' : ' disabled'}>${btn}</button>
+        </div>
       </div>
       <a class="name" href="/${esc(u.screenName)}" data-nav>${esc(u.name)}${badge}</a>
       <div class="handle">@${esc(u.screenName)}${u.followsMe ? '<span class="pill">Follows you</span>' : ''}</div>
