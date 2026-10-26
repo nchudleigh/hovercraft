@@ -4,6 +4,8 @@
   const GAP = 8;
   const GLIDE = '200ms cubic-bezier(0.215, 0.61, 0.355, 1)'; // ease-out cubic
   const HIDE_GRACE_MS = 100; // only while crossing to the card or a neighboring profile
+  const FIRST_REVEAL_MS = 150; // slight delay before the first card; switches stay instant
+  const WARM_MS = 300; // re-hover this soon after a hide counts as a switch
   const NEAR_PX = 16; // gap around the anchor that still counts as "between profiles"
   const RESERVED = new Set([
     'home', 'explore', 'notifications', 'messages', 'i', 'settings', 'search',
@@ -203,7 +205,7 @@
 
   // ---- Show / hide ----
 
-  const state = { user: null, anchor: null, visible: false, hideTimer: 0 };
+  const state = { user: null, anchor: null, visible: false, hideTimer: 0, showTimer: 0, pending: null, hiddenAt: -Infinity };
 
   function place(anchor, glide) {
     const a = anchor.getBoundingClientRect();
@@ -234,6 +236,7 @@
 
   function hide() {
     clearTimeout(state.hideTimer);
+    if (state.visible) state.hiddenAt = performance.now();
     host.style.display = 'none';
     state.visible = false;
     state.anchor = null;
@@ -266,10 +269,21 @@
       if (state.visible && hit.handle === state.user?.screenName.toLowerCase()) {
         clearTimeout(state.hideTimer);
         state.anchor = hit.link;
-      } else {
+      } else if (state.visible || performance.now() - state.hiddenAt < WARM_MS) {
         show(hit.link, hit.handle);
+      } else if (state.pending !== hit.link) {
+        clearTimeout(state.showTimer);
+        state.pending = hit.link;
+        state.showTimer = setTimeout(() => {
+          state.pending = null;
+          show(hit.link, hit.handle);
+        }, FIRST_REVEAL_MS);
       }
       return;
+    }
+    if (state.pending && !state.pending.contains(e.target)) {
+      clearTimeout(state.showTimer);
+      state.pending = null;
     }
     if (!state.visible) return;
     if (state.anchor?.contains(e.target)) return;
