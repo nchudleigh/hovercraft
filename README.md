@@ -1,20 +1,44 @@
+<div align="center">
+
+<img src="icons/icon128.png" width="96" height="96" alt="Hovercraft icon">
+
 # Hovercraft
 
-A Chrome extension that replaces X's profile hover card with one that's instant.
+**Instant profile hover cards for X.**<br>
+No half-second wait, no fade, and the card glides from profile to profile.
 
-- Shows the moment you hover a profile. No 600ms wait, no fade.
-- Hides the moment you leave, unless you're moving into the card.
-- Glides between profiles instead of closing and reopening, so you can sweep across a row of avatars.
-- Uses data X already loaded for the page, so there's no network wait.
+<img src="docs/media/demo.gif" width="720" alt="Hovercraft demo: sweeping across avatars in X notifications while the card glides between profiles">
 
-The card shows the avatar, a Follow button, name and verified badge, "Follows you", bio, follower counts and "Followed by…". It matches X's Light, Dim and Lights out themes.
+<sub>[Watch the full-quality video](docs/media/demo.mp4)</sub>
+
+</div>
+
+---
+
+## Why
+
+X's hover card waits about 600ms before it shows, fades in, waits again before it hides, and closes and reopens every time you move to the next profile. Sweeping across a row of avatars in your notifications feels like wading through mud.
+
+Hovercraft replaces it with a card that keeps up with your mouse.
+
+## Features
+
+| | |
+|---|---|
+| ⚡ **Instant** | A slight 150ms delay on the first card so it doesn't pop as you pass by, then every switch is immediate. |
+| 🛸 **Glides** | Moving to another profile slides the open card over and swaps its content, so it never closes and reopens. |
+| 👋 **Gets out of the way** | Hides the moment you leave, unless you're heading into the card. |
+| 📡 **No network wait** | Reads the profile data X already loaded for the page. |
+| 🎨 **Native look** | Follow button, verified badges, "Follows you", bio, counts and "Followed by…". Matches Light, Dim and Lights out. |
 
 ## Install
 
-1. Clone this repo.
+1. Clone this repo, or download it as a ZIP and unzip it.
 2. Open `chrome://extensions` and turn on **Developer mode**.
 3. Click **Load unpacked** and pick the repo folder.
 4. Refresh X.
+
+Works in Chrome and other Chromium browsers (Arc, Brave, Edge, Helium, …).
 
 ## How it works
 
@@ -23,12 +47,28 @@ The card shows the avatar, a Follow button, name and verified badge, "Follows yo
 - The "Followed by" row reuses the request X's hidden native card still makes.
 - Follow/unfollow calls X's API with your existing session.
 
-Tweak timings and colors at the top of `card.js` (`GLIDE`, `HIDE_GRACE_MS`, `NEAR_PX`, and the CSS variables).
+## Tweaking
+
+Everything lives at the top of `card.js`:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `FIRST_REVEAL_MS` | `150` | Delay before the first card appears |
+| `WARM_MS` | `300` | Re-hover within this long after a hide and the card shows instantly |
+| `GLIDE` | `200ms` ease-out cubic | How the card slides between profiles |
+| `HIDE_GRACE_MS` | `100` | Grace period while crossing into the card or to a neighboring profile |
+| `NEAR_PX` | `16` | How far from a profile still counts as "between profiles" |
+
+Colors are CSS variables (`--bg`, `--stroke`, `--outer`, …) in the same file.
 
 ## Caveats
 
-X changes its markup and data shapes often, so this can break. If a card doesn't show for someone, check the console for `[x-hovercard] no user data for <handle>`.
+X changes its markup and data often, so this can break. If a card doesn't show for someone, check the console for `[x-hovercard] no user data for <handle>` and [open an issue](https://github.com/nchudleigh/hovercraft/issues).
+
+## Privacy
+
+No data is collected or sent anywhere. See [PRIVACY.md](PRIVACY.md).
 
 ## License
 
-MIT
+[MIT](LICENSE)
