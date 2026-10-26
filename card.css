@@ -1,3 +1,3 @@
 /* Hide X's native profile hover card; card.js draws its own.
    Popover menus (e.g. the account switcher) share this testid, so keep those. */
-[data-testid="HoverCard"]:not(:has([role="menu"], [role="menuitem"])) { display: none !important; }
+html:not([data-hovercraft="off"]) [data-testid="HoverCard"]:not(:has([role="menu"], [role="menuitem"])) { display: none !important; }

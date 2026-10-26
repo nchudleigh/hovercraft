@@ -1,8 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Hovercraft",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Replaces X's profile hover card with an instant one that glides between profiles.",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Hovercraft"
+  },
   "content_scripts": [
     {
       "matches": [
@@ -11,6 +18,16 @@
       ],
       "css": [
         "card.css"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "js": [
+        "bridge.js"
       ],
       "run_at": "document_start"
     },

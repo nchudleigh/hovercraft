@@ -1,0 +1,7 @@
+// Mirrors the popup toggle onto <html> so card.js and card.css (page world) can see it.
+const apply = (enabled) => (document.documentElement.dataset.hovercraft = enabled === false ? 'off' : 'on');
+
+chrome.storage.local.get('enabled', ({ enabled }) => apply(enabled));
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.enabled) apply(changes.enabled.newValue);
+});
