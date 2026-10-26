@@ -27,6 +27,8 @@ Open source: https://github.com/nchudleigh/hovercraft
 
 **Small promo tile (440×280):** `docs/store/promo-440x280.png`
 
+**Marquee promo tile (1400×560):** `docs/store/marquee-1400x560.png`
+
 ## Privacy practices
 
 **Single purpose:** Replace the profile hover card on X with a faster one.
