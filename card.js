@@ -2,10 +2,12 @@
 (() => {
   const CARD_WIDTH = 300;
   const GAP = 8;
-  const GLIDE = '200ms cubic-bezier(0.215, 0.61, 0.355, 1)'; // ease-out cubic
+  const EASE_OUT_CUBIC = 'cubic-bezier(0.215, 0.61, 0.355, 1)';
+  const GLIDE = `200ms ${EASE_OUT_CUBIC}`;
   const HIDE_GRACE_MS = 100; // only while crossing to the card or a neighboring profile
   const FIRST_REVEAL_MS = 150; // slight delay before the first card; switches stay instant
   const WARM_MS = 300; // re-hover this soon after a hide counts as a switch
+  const HOLD_MS = 1000; // press and hold a profile or the card this long to follow
   const NEAR_PX = 16; // gap around the anchor that still counts as "between profiles"
   const FETCH_TIMEOUT_MS = 4000; // give up on the skeleton and show what we have
   const RESERVED = new Set([
@@ -193,6 +195,9 @@
       background:var(--btn-bg); color:var(--btn-fg); }
     .btn.on { background:transparent; color:var(--fg); border-color:var(--line); }
     .btn.on:hover { color:#f4212e; border-color:#67070f; background:rgba(244,33,46,.1); }
+    .btn { position:relative; overflow:hidden; isolation:isolate; }
+    .btn::before { content:""; position:absolute; inset:0; z-index:-1; background:var(--link);
+      transform:scaleX(0); transform-origin:left; }
     .name { font-weight:700; font-size:17px; display:flex; align-items:center; gap:2px; }
     .badge { width:20px; height:20px; flex:none; }
     .handle { color:var(--dim); display:flex; align-items:center; gap:4px; }
@@ -283,6 +288,7 @@
     if (!img) return;
     if (prevAvatar && prevAvatar.getAttribute('src') === img.getAttribute('src')) img.replaceWith(prevAvatar);
     else img.onerror = () => { img.onerror = null; img.src = u.avatarSmall; };
+    if (hold) fillButton(performance.now() - hold.start);
   }
 
   function theme() {
@@ -307,6 +313,7 @@
   }
 
   function show(link, handle) {
+    cancelHold(); // never follow someone the hold didn't start on
     const user = lookup(link, handle);
     clearTimeout(state.hideTimer);
     const glide = state.visible;
@@ -330,6 +337,7 @@
   }
 
   function hide() {
+    cancelHold();
     clearTimeout(state.hideTimer);
     if (state.visible) state.hiddenAt = performance.now();
     host.style.display = 'none';
@@ -402,7 +410,67 @@
 
   addEventListener('scroll', () => state.visible && hide(), { capture: true, passive: true });
   // Clicking anything outside the card (e.g. opening the account menu) closes it.
-  addEventListener('mousedown', (e) => state.visible && e.target !== host && hide(), true);
+  addEventListener('mousedown', (e) => {
+    if (!state.visible) return;
+    if (e.button === 0 && startHold(e)) return;
+    if (e.target !== host) hide();
+  }, true);
+
+  // ---- Press and hold to follow ----
+
+  let hold = null; // { start, timer }
+  let swallowClick = false;
+
+  const followButton = () => cardEl.querySelector('[data-follow]');
+
+  function fillButton(elapsed) {
+    const anim = followButton()?.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
+      { duration: HOLD_MS, easing: EASE_OUT_CUBIC, fill: 'forwards', pseudoElement: '::before' });
+    if (anim) anim.currentTime = elapsed;
+  }
+
+  // Fill fraction at time t, so a cancel drains from where the eased fill actually is.
+  const fillAt = (t) => 1 - (1 - t) ** 3;
+
+  function startHold(e) {
+    const u = state.user;
+    if (!u?.id || u.loading || u.iFollow) return false;
+    const path = e.composedPath();
+    const onCard = path.includes(host) && !path.some((el) => el.matches?.('[data-follow], .icon-btn'));
+    if (!onCard && !state.anchor?.contains(e.target)) return false;
+    e.preventDefault(); // no link drag or text selection while holding
+    cancelHold();
+    hold = { start: performance.now(), timer: setTimeout(completeHold, HOLD_MS) };
+    fillButton(0);
+    return true;
+  }
+
+  function completeHold() {
+    hold = null;
+    swallowClick = true; // the release shouldn't also open the profile
+    toggleFollow();
+  }
+
+  function cancelHold() {
+    if (!hold) return;
+    clearTimeout(hold.timer);
+    const p = fillAt(Math.min(1, (performance.now() - hold.start) / HOLD_MS));
+    hold = null;
+    followButton()?.animate([{ transform: `scaleX(${p})` }, { transform: 'scaleX(0)' }],
+      { duration: 200, easing: EASE_OUT_CUBIC, pseudoElement: '::before' });
+  }
+
+  addEventListener('mouseup', () => {
+    cancelHold();
+    setTimeout(() => (swallowClick = false));
+  }, true);
+  addEventListener('click', (e) => {
+    if (!swallowClick) return;
+    swallowClick = false;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+  addEventListener('dragstart', cancelHold, true);
 
   // Same-tab links go through X's router instead of a full page load.
   root.addEventListener('click', (e) => {
