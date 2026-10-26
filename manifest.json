@@ -27,7 +27,8 @@
         "https://twitter.com/*"
       ],
       "js": [
-        "bridge.js"
+        "bridge.js",
+        "video.js"
       ],
       "run_at": "document_start"
     },
