@@ -358,7 +358,11 @@
       y >= Math.min(a.top, b.top) && y <= Math.max(a.bottom, b.bottom));
   }
 
+  // Set by bridge.js from the popup toggle.
+  const disabled = () => document.documentElement.dataset.hovercraft === 'off';
+
   document.addEventListener('mouseover', (e) => {
+    if (disabled()) return state.visible && hide();
     if (e.target === host) return clearTimeout(state.hideTimer);
     const hit = profileLink(e.target);
     if (hit) {
