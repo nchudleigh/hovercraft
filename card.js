@@ -68,13 +68,15 @@
     return null;
   }
 
-  // Accepts both the flat REST shape and the GraphQL { core, legacy } shape.
+  // Accepts the flat REST shape, the older GraphQL { core, legacy } shape, and the
+  // current GraphQL shape, which drops `legacy` for profile_bio / relationship_counts.
   function normalize(u) {
     const l = u.legacy || u;
     const screenName = u.core?.screen_name || l.screen_name;
     if (typeof screenName !== 'string') return null;
     const id = u.rest_id || l.id_str || u.id_str;
     const o = overrides.get(id) || {};
+    const bio = u.profile_bio || l;
     return {
       id,
       screenName,
@@ -82,10 +84,12 @@
       avatar: (u.avatar?.image_url || l.profile_image_url_https || '').replace('_normal.', '_200x200.'),
       avatarSmall: u.avatar?.image_url || l.profile_image_url_https || '',
       square: (u.profile_image_shape || l.profile_image_shape) === 'Square',
-      bio: l.description || '',
-      bioUrls: l.entities?.description?.urls || [],
-      followers: l.followers_count ?? 0,
-      following: l.friends_count ?? 0,
+      bio: bio.description || '',
+      bioUrls: bio.entities?.description?.urls || [],
+      followers: u.relationship_counts?.followers ?? l.followers_count ?? 0,
+      following: u.relationship_counts?.following ?? l.friends_count ?? 0,
+      posts: u.tweet_counts?.tweets ?? l.statuses_count ?? 0,
+      protected: !!(u.privacy?.protected ?? l.protected),
       blue: !!(u.is_blue_verified ?? l.is_blue_verified),
       verifiedType: u.verification?.verified_type || l.verified_type,
       iFollow: o.following ?? !!(u.relationship_perspectives?.following ?? l.following),
@@ -95,7 +99,13 @@
   }
 
   // Mentions and face-piles carry stub users with no avatar or counts.
-  const isFull = (u) => (u.legacy || u).followers_count != null;
+  const isFull = (u) => (u.relationship_counts?.followers ?? (u.legacy || u).followers_count) != null;
+
+  // X's own feature switches (from its Redux store), e.g. the Grok profile summary rules.
+  const featureSwitch = (key, fallback) => {
+    const fs = store?.getState()?.featureSwitch;
+    return fs?.user?.config?.[key]?.value ?? fs?.defaultConfig?.[key]?.value ?? fallback;
+  };
 
   function matchUser(obj, handle, depth, full) {
     if (!obj || typeof obj !== 'object' || depth > 2 || obj.$$typeof || obj instanceof Node) return null;
@@ -176,25 +186,33 @@
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:0;top:0;z-index:2147483647;display:none;';
   const root = host.attachShadow({ mode: 'open' });
+  // Colors, shadows and sizes come from X's theme tokens (modalBackground, boxShadows.menu,
+  // buttonOutlinedBorder, ...). Lights out and Dim now share the same card palette.
   root.innerHTML = `<style>
-    :host { --bg:#16181c; --fg:#e7e9ea; --dim:#71767b; --line:#2f3336; --link:#1d9bf0;
-      --stroke:#3e4144; --outer:#0b0c0e; --btn-bg:#eff3f4; --btn-fg:#0f1419; }
-    :host([theme=dim]) { --bg:#1e2732; --dim:#8b98a5; --line:#38444d; --stroke:#4a5560; }
+    :host { --bg:#141414; --fg:#e7e9ea; --dim:#71767b; --line:#2f3336; --link:#1d9bf0;
+      --shadow:0 4px 12px rgba(0,0,0,.5), 0 0 2px rgba(0,0,0,.35);
+      --btn-bg:#eff3f4; --btn-fg:#0f1419; --btn-hover:#d7dbdc; --btn-line:#536471;
+      --danger-line:#67070f; --face-ring:#000; }
+    :host([theme=dim]) { --line:#38444d; --face-ring:#010c12;
+      --shadow:0 0 15px rgba(101,119,134,.2), 0 0 3px 1px rgba(101,119,134,.15); }
     :host([theme=light]) { --bg:#fff; --fg:#0f1419; --dim:#536471; --line:#cfd9de;
-      --stroke:#cfd9de; --outer:rgba(0,0,0,.08); --btn-bg:#0f1419; --btn-fg:#fff; }
+      --shadow:0 0 15px rgba(101,119,134,.2), 0 0 3px 1px rgba(101,119,134,.15);
+      --btn-bg:#0f1419; --btn-fg:#fff; --btn-hover:#272c30; --btn-line:#cfd9de;
+      --danger-line:#fdc9ce; --face-ring:#fff; }
     .card { width:${CARD_WIDTH}px; box-sizing:border-box; padding:16px; border-radius:16px;
-      background:var(--bg); color:var(--fg);
-      border:1px solid var(--stroke); box-shadow:0 0 0 1px var(--outer);
+      background:var(--bg); color:var(--fg); box-shadow:var(--shadow);
       font:15px/20px TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     a { color:inherit; text-decoration:none; } a:hover { text-decoration:underline; }
-    .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+    .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
     .avatar { width:64px; height:64px; border-radius:50%; object-fit:cover; display:block; background:var(--line) center/cover; }
     .avatar.square { border-radius:8px; }
-    .btn { border:1px solid transparent; border-radius:9999px; padding:0 16px; height:36px; min-width:96px;
+    .btn { border:1px solid transparent; border-radius:9999px; padding:0 16px; height:36px; min-width:36px;
       font:700 15px TwitterChirp, -apple-system, sans-serif; cursor:pointer;
-      background:var(--btn-bg); color:var(--btn-fg); }
-    .btn.on { background:transparent; color:var(--fg); border-color:var(--line); }
-    .btn.on:hover { color:#f4212e; border-color:#67070f; background:rgba(244,33,46,.1); }
+      background:var(--btn-bg); color:var(--btn-fg); transition:background-color .2s; }
+    .btn:not(.on):not([disabled]):hover { background:var(--btn-hover); }
+    .btn.on, .icon-btn, .grok { background:transparent; color:var(--btn-bg); border:1px solid var(--btn-line); }
+    .btn.on:hover, .icon-btn:hover, .grok:hover { background:color-mix(in srgb, currentColor 10%, transparent); text-decoration:none; }
+    .btn.on:hover { color:#f4212e; border-color:var(--danger-line); }
     .btn { position:relative; overflow:hidden; isolation:isolate; }
     .btn::before { content:""; position:absolute; inset:0; z-index:-1; background:var(--link);
       transform:scaleX(0); transform-origin:left; }
@@ -206,18 +224,21 @@
     .bio a { color:var(--link); }
     .stats { margin-top:12px; display:flex; gap:20px; }
     .stats b { color:var(--fg); } .stats span { color:var(--dim); }
-    .known { margin-top:12px; display:flex; align-items:center; gap:8px; color:var(--dim); font-size:13px; line-height:16px; }
-    .known img { width:20px; height:20px; border-radius:50%; border:2px solid var(--bg); margin-right:-10px; }
-    .known .faces { display:flex; padding-right:10px; flex:none; }
+    .known { margin-top:12px; min-height:20px; display:flex; align-items:center; gap:12px; color:var(--dim); font-size:13px; line-height:16px; }
+    .known img { width:24px; height:24px; box-sizing:border-box; border-radius:50%; border:1px solid var(--face-ring); background:var(--face-ring); }
+    .known img + img { margin-left:-12px; }
+    .known .faces { display:flex; flex:none; }
+    .grok { margin-top:16px; height:36px; box-sizing:border-box; border-radius:9999px; transition:background-color .2s;
+      display:flex; align-items:center; justify-content:center; gap:4px; font-weight:700; }
+    .grok svg { width:20px; height:20px; fill:currentColor; }
     .sk { background:var(--line); border-radius:6px; animation:pulse 1.2s ease-in-out infinite; }
     .avatar.sk { border-radius:50%; }
     .sk-line { height:12px; margin-top:8px; }
     .sk-stats { height:14px; width:60%; margin-top:16px; }
     .btn[disabled] { opacity:.5; cursor:default; }
     .actions { display:flex; gap:8px; }
-    .icon-btn { width:36px; height:36px; box-sizing:border-box; border:1px solid var(--line); border-radius:50%;
-      display:flex; align-items:center; justify-content:center; color:var(--fg); }
-    .icon-btn:hover { background:rgba(127,127,127,.1); text-decoration:none; }
+    .icon-btn { width:36px; height:36px; box-sizing:border-box; border-radius:50%; transition:background-color .2s;
+      display:flex; align-items:center; justify-content:center; }
     .icon-btn svg { width:20px; height:20px; fill:currentColor; }
     @keyframes pulse { 50% { opacity:.5; } }
   </style><div class="card"></div>`;
@@ -227,6 +248,7 @@
 
   const BADGE = 'M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z';
   const MAIL = 'M1.998 5.5c0-1.381 1.119-2.5 2.5-2.5h15c1.381 0 2.5 1.119 2.5 2.5v13c0 1.381-1.119 2.5-2.5 2.5h-15c-1.381 0-2.5-1.119-2.5-2.5v-13zm2.5-.5c-.276 0-.5.224-.5.5v2.764l8 3.638 8-3.636V5.5c0-.276-.224-.5-.5-.5h-15zm15.5 5.463l-8 3.636-8-3.638V18.5c0 .276.224.5.5.5h15c.276 0 .5-.224.5-.5v-8.037z';
+  const GROK = 'M12.745 20.54l10.97-8.19c.539-.4 1.307-.244 1.564.38 1.349 3.288.746 7.241-1.938 9.955-2.683 2.714-6.417 3.31-9.83 1.954l-3.728 1.745c5.347 3.697 11.84 2.782 15.898-1.324 3.219-3.255 4.216-7.692 3.284-11.693l.008.009c-1.351-5.878.332-8.227 3.782-13.031L33 0l-4.54 4.59v-.014L12.743 20.544m-2.263 1.987c-3.837-3.707-3.175-9.446.1-12.755 2.42-2.449 6.388-3.448 9.852-1.979l3.72-1.737c-.67-.49-1.53-1.017-2.515-1.387-4.455-1.854-9.789-.931-13.41 2.728-3.483 3.523-4.579 8.94-2.697 13.561 1.405 3.454-.899 5.898-3.22 8.364C1.49 30.2.666 31.074 0 32l10.478-9.466';
   const BADGE_COLOR = { Business: '#e2b719', Government: '#829aab' };
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -241,16 +263,28 @@
     return html.replace(/(^|[^\w])@(\w{1,15})/g, '$1<a href="/$2" data-nav>@$2</a>');
   }
 
+  // Same wording as X: one, two or three names, or two names "and N others you follow".
   function knownHtml(id) {
     const k = followedBy.get(id);
     if (!k || !k.total) return '';
-    const names = k.users.slice(0, 2).map((u) => esc(u.name));
-    const rest = k.total - names.length;
-    const text = rest > 0
-      ? `${names.join(', ')}, and ${rest} other${rest > 1 ? 's' : ''} you follow`
-      : names.join(' and ');
-    const faces = k.users.slice(0, 3).map((u) => `<img src="${esc(u.profile_image_url_https)}">`).join('');
-    return `<div class="known"><div class="faces">${faces}</div><div>Followed by ${text}</div></div>`;
+    const names = k.users.slice(0, 3).map((u) => esc(u.name));
+    const text = k.total > 3
+      ? `${names[0]}, ${names[1]}, and ${k.total - 2} others you follow`
+      : names.length === 3 ? `${names[0]}, ${names[1]}, and ${names[2]}` : names.join(' and ');
+    const faces = k.users.slice(0, 3)
+      .map((u, i) => `<img src="${esc(u.profile_image_url_https)}" style="z-index:${3 - i}">`).join('');
+    return `<a class="known" href="/${esc(state.user.screenName)}/followers_you_follow" data-nav><div class="faces">${faces}</div><div>Followed by ${text}</div></a>`;
+  }
+
+  // X's rules for its "Profile Summary" Grok button; thresholds are X's live feature switches.
+  function grokHtml(u) {
+    const show = featureSwitch('responsive_web_grok_profile_summary_enabled', false) &&
+      u.followers >= featureSwitch('responsive_web_grok_profile_summary_min_followers', 1e6) &&
+      u.posts >= featureSwitch('responsive_web_grok_profile_summary_min_posts', 100) &&
+      !u.protected && (!u.verifiedType || u.verifiedType === 'User');
+    if (!show) return '';
+    // /i/grok?text= auto-submits the prompt, the same "@handle" prompt X's button sends.
+    return `<a class="grok" href="/i/grok?text=${encodeURIComponent(`@${u.screenName}`)}" data-nav><svg viewBox="0 0 33 32"><path d="${GROK}"/></svg>Profile Summary</a>`;
   }
 
   function render() {
@@ -271,7 +305,8 @@
         <a href="/${esc(u.screenName)}/following" data-nav><b>${count(u.following)}</b> <span>Following</span></a>
         <a href="/${esc(u.screenName)}/verified_followers" data-nav><b>${count(u.followers)}</b> <span>Followers</span></a>
       </div>`}
-      ${knownHtml(u.id)}`;
+      ${knownHtml(u.id)}
+      ${u.partial ? '' : grokHtml(u)}`;
     cardEl.innerHTML = `
       <div class="top">
         <a href="/${esc(u.screenName)}" data-nav>${avatar}</a>
@@ -294,7 +329,8 @@
   function theme() {
     const bg = getComputedStyle(document.body).backgroundColor;
     if (bg === 'rgb(255, 255, 255)') return 'light';
-    if (bg === 'rgb(21, 32, 43)') return 'dim';
+    // Dim moved from #15202b to #010c12; keep both.
+    if (bg === 'rgb(1, 12, 18)' || bg === 'rgb(21, 32, 43)') return 'dim';
     return 'dark';
   }
 
@@ -314,6 +350,7 @@
 
   function show(link, handle) {
     cancelHold(); // never follow someone the hold didn't start on
+    findStore(link); // feature switches live in X's store
     const user = lookup(link, handle);
     clearTimeout(state.hideTimer);
     const glide = state.visible;
@@ -436,7 +473,7 @@
     const u = state.user;
     if (!u?.id || u.loading || u.iFollow) return false;
     const path = e.composedPath();
-    const onCard = path.includes(host) && !path.some((el) => el.matches?.('[data-follow], .icon-btn'));
+    const onCard = path.includes(host) && !path.some((el) => el.matches?.('[data-follow], .icon-btn, .grok'));
     if (!onCard && !state.anchor?.contains(e.target)) return false;
     e.preventDefault(); // no link drag or text selection while holding
     cancelHold();

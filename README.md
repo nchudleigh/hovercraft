@@ -31,7 +31,7 @@ Hovercraft replaces it with a card that keeps up with your mouse.
 | ✊ **Hold to follow** | Press and hold a profile or its card for a second to follow. The Follow button fills as you hold. |
 | ⏩ **Hold for 2×** | Press and hold a playing video to watch at 2× speed, like the phone app. Let go to return to normal. |
 | 📡 **No network wait** | Reads the profile data X already loaded for the page. |
-| 🎨 **Native look** | Follow button, verified badges, "Follows you", bio, counts and "Followed by…". Matches Light, Dim and Lights out. |
+| 🎨 **Native look** | Follow button, verified badges, "Follows you", bio, counts, "Followed by…" and the Grok Profile Summary button. Matches Light, Dim and Lights out. |
 
 ## Install
 
@@ -65,7 +65,7 @@ Everything lives at the top of `card.js`:
 | `HIDE_GRACE_MS` | `100` | Grace period while crossing into the card or to a neighboring profile |
 | `NEAR_PX` | `16` | How far from a profile still counts as "between profiles" |
 
-Colors are CSS variables (`--bg`, `--stroke`, `--outer`, …) in the same file.
+Colors are CSS variables (`--bg`, `--shadow`, `--btn-line`, …) in the same file, taken from X's own theme tokens.
 
 ## Caveats
 
