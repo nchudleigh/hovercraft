@@ -616,21 +616,22 @@
     const article = anchor?.closest('article');
     const head = anchor?.getBoundingClientRect();
     const shown = state.user;
-    if (reduced()) hide();
+    const reduceMotion = reduced();
+    if (reduceMotion) hide();
     else cardEl.animate([{}, { opacity: 0, transform: 'scale(.96)' }], { duration: 150, easing: 'ease-in' })
       .onfinish = () => state.user === shown && hide();
-    if (!anchor) return toggle('block');
     const cell = article && (article.closest('[data-testid="cellInnerDiv"]') || article);
     let restore = () => {};
-    if (!cell && reduced()) {
-      // nothing to remove
-    } else if (reduced()) {
+    if (head && !reduceMotion) {
+      restore = party(article, cell, head);
+    } else if (cell) {
       const fade = cell.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' });
       restore = () => fade.cancel();
-    } else {
-      restore = party(article, cell, head);
     }
-    toggle('block').then((ok) => ok || restore());
+    toggle('block').then((ok) => {
+      if (ok) document.dispatchEvent(new Event('hovercraft:skull-blocked'));
+      else restore();
+    });
   }
 
   // Shrinks the timeline cell away; returns an undo.
