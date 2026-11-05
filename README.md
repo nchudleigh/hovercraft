@@ -30,7 +30,7 @@ Hovercraft replaces it with a card that keeps up with your mouse.
 | 👋 **Gets out of the way** | Hides the moment you leave, unless you're heading into the card. |
 | ✊ **Hold to follow** | Press and hold a profile or its card for a second to follow. The Follow button fills as you hold. |
 | 📡 **No network wait** | Reads the profile data X already loaded for the page. |
-| 🎨 **Native look** | Follow button, verified badges, "Follows you", bio, counts and "Followed by…". Matches Light, Dim and Lights out. |
+| 🎨 **Native look** | Follow button, verified badges, "Follows you", bio and counts. Matches Light, Dim and Lights out. |
 
 ## Install
 
@@ -49,7 +49,6 @@ Works in Chrome and other Chromium browsers (Arc, Brave, Edge, Helium, …).
 
 - `card.css` hides X's native hover card.
 - `card.js` runs in the page so it can read X's React data for the hovered profile, then draws its own card in a shadow root.
-- The "Followed by" row reuses the request X's hidden native card still makes.
 - Follow/unfollow calls X's API with your existing session.
 
 ## Tweaking

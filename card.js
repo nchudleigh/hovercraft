@@ -18,8 +18,7 @@
   // ---- Data ----
 
   const auth = { authorization: null };
-  const followedBy = new Map(); // user id -> { users, total }
-  const overrides = new Map(); // user id -> { following }
+  const overrides = new Map(); // user id -> { iFollow, muting, blocking }
   const fetched = new Map(); // handle -> full user, for profiles the page only had stubs for
   const inflight = new Map(); // handle -> Promise<full user | null>
 
@@ -34,23 +33,6 @@
   XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
     if (name.toLowerCase() === 'authorization') auth.authorization = value;
     return origSetHeader.apply(this, arguments);
-  };
-
-  // X's native card still requests "followers you know"; reuse the response.
-  const origOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function (method, url) {
-    const u = String(url);
-    if (u.includes('/friends/following/list.json')) {
-      const id = new URL(u, location.origin).searchParams.get('user_id');
-      this.addEventListener('load', () => {
-        try {
-          const data = JSON.parse(this.responseText);
-          followedBy.set(id, { users: data.users || [], total: data.total_count || 0 });
-          if (state.user?.id === id) render();
-        } catch {}
-      });
-    }
-    return origOpen.apply(this, arguments);
   };
 
   const fiberOf = (el) => {
@@ -88,7 +70,9 @@
       following: l.friends_count ?? 0,
       blue: !!(u.is_blue_verified ?? l.is_blue_verified),
       verifiedType: u.verification?.verified_type || l.verified_type,
-      iFollow: o.following ?? !!(u.relationship_perspectives?.following ?? l.following),
+      iFollow: o.iFollow ?? !!(u.relationship_perspectives?.following ?? l.following),
+      muting: o.muting ?? !!(u.relationship_perspectives?.muting ?? l.muting),
+      blocking: o.blocking ?? !!(u.relationship_perspectives?.blocking ?? l.blocking),
       followsMe: !!(u.relationship_perspectives?.followed_by ?? l.followed_by),
       canDM: u.dm_permissions?.can_dm ?? l.can_dm,
     };
@@ -187,38 +171,50 @@
       border:1px solid var(--stroke); box-shadow:0 0 0 1px var(--outer);
       font:15px/20px TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     a { color:inherit; text-decoration:none; } a:hover { text-decoration:underline; }
-    .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
-    .avatar { width:64px; height:64px; border-radius:50%; object-fit:cover; display:block; background:var(--line) center/cover; }
+    .avatar { width:44px; height:44px; border-radius:50%; object-fit:cover; display:block; background:var(--line) center/cover; }
     .avatar.square { border-radius:8px; }
-    .btn { border:1px solid transparent; border-radius:9999px; padding:0 16px; height:36px; min-width:96px;
+    .btn { border:1px solid transparent; border-radius:9999px; padding:0 12px; height:32px; min-width:88px; white-space:nowrap;
       font:700 15px TwitterChirp, -apple-system, sans-serif; cursor:pointer;
       background:var(--btn-bg); color:var(--btn-fg); }
     .btn.on { background:transparent; color:var(--fg); border-color:var(--line); }
     .btn.on:hover { color:#f4212e; border-color:#67070f; background:rgba(244,33,46,.1); }
-    .btn { position:relative; overflow:hidden; isolation:isolate; }
-    .btn::before { content:""; position:absolute; inset:0; z-index:-1; background:var(--link);
+    .btn { position:relative; overflow:hidden; isolation:isolate;
+      transition:transform 160ms ${EASE_OUT_CUBIC}, background-color 200ms, color 200ms; }
+    .btn::before { content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit;
+      background:color-mix(in srgb, var(--link) 45%, transparent);
       transform:scaleX(0); transform-origin:left; }
+    .btn.holding { transform:scale(.94); }
+    @media (prefers-reduced-motion: reduce) { .btn.holding { transform:none; } }
     .name { font-weight:700; font-size:17px; display:flex; align-items:center; gap:2px; }
     .badge { width:20px; height:20px; flex:none; }
     .handle { color:var(--dim); display:flex; align-items:center; gap:4px; }
     .pill { font-size:12px; line-height:16px; padding:0 4px; border-radius:4px; background:var(--line); color:var(--dim); }
+    .card { display:grid; grid-template-columns:auto 1fr; column-gap:10px;
+      grid-template-areas:"av who" "details details" "actions actions" "bio bio"; }
+    .av { grid-area:av; align-self:center; } .who { grid-area:who; align-self:center; min-width:0; }
+    .details { grid-area:details; min-width:0; } .bio { grid-area:bio; min-width:0; }
+    .actions { grid-area:actions; margin-top:12px; } [data-follow] { flex:1; }
     .bio { margin-top:12px; white-space:pre-wrap; overflow-wrap:anywhere; }
     .bio a { color:var(--link); }
     .stats { margin-top:12px; display:flex; gap:20px; }
     .stats b { color:var(--fg); } .stats span { color:var(--dim); }
-    .known { margin-top:12px; display:flex; align-items:center; gap:8px; color:var(--dim); font-size:13px; line-height:16px; }
-    .known img { width:20px; height:20px; border-radius:50%; border:2px solid var(--bg); margin-right:-10px; }
-    .known .faces { display:flex; padding-right:10px; flex:none; }
     .sk { background:var(--line); border-radius:6px; animation:pulse 1.2s ease-in-out infinite; }
     .avatar.sk { border-radius:50%; }
-    .sk-line { height:12px; margin-top:8px; }
-    .sk-stats { height:14px; width:60%; margin-top:16px; }
+    .sk-line { height:12px; margin-top:8px; } .sk-stats + .sk-line { margin-top:16px; }
+    .sk-stats { height:14px; width:60%; margin-top:12px; }
     .btn[disabled] { opacity:.5; cursor:default; }
-    .actions { display:flex; gap:8px; }
-    .icon-btn { width:36px; height:36px; box-sizing:border-box; border:1px solid var(--line); border-radius:50%;
+    .actions { display:flex; gap:6px; flex:none; position:relative; }
+    button.icon-btn { background:none; padding:0; cursor:pointer; }
+    .menu { position:absolute; left:0; top:38px; z-index:1; min-width:180px; padding:4px; border-radius:12px;
+      background:var(--bg); border:1px solid var(--stroke); box-shadow:0 8px 24px rgba(0,0,0,.25); }
+    .menu button { display:block; width:100%; padding:8px 12px; border:0; border-radius:8px; background:none;
+      color:var(--fg); font:inherit; font-weight:700; text-align:left; cursor:pointer; }
+    .menu button:hover { background:rgba(127,127,127,.1); }
+    .menu .danger { color:#f4212e; }
+    .icon-btn { width:32px; height:32px; box-sizing:border-box; border:1px solid var(--line); border-radius:50%;
       display:flex; align-items:center; justify-content:center; color:var(--fg); }
     .icon-btn:hover { background:rgba(127,127,127,.1); text-decoration:none; }
-    .icon-btn svg { width:20px; height:20px; fill:currentColor; }
+    .icon-btn svg { width:18px; height:18px; fill:currentColor; }
     @keyframes pulse { 50% { opacity:.5; } }
   </style><div class="card"></div>`;
   const cardEl = root.querySelector('.card');
@@ -226,7 +222,8 @@
   document.documentElement ? mount() : document.addEventListener('DOMContentLoaded', mount);
 
   const BADGE = 'M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z';
-  const MAIL = 'M1.998 5.5c0-1.381 1.119-2.5 2.5-2.5h15c1.381 0 2.5 1.119 2.5 2.5v13c0 1.381-1.119 2.5-2.5 2.5h-15c-1.381 0-2.5-1.119-2.5-2.5v-13zm2.5-.5c-.276 0-.5.224-.5.5v2.764l8 3.638 8-3.636V5.5c0-.276-.224-.5-.5-.5h-15zm15.5 5.463l-8 3.636-8-3.638V18.5c0 .276.224.5.5.5h15c.276 0 .5-.224.5-.5v-8.037z';
+  const CHAT = 'M12 3.5a8.5 8.5 0 0 0-7.4 12.7L3.5 20.5l4.4-1.1A8.5 8.5 0 1 0 12 3.5z';
+  const MORE = 'M3 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm9 2c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm7 0c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z';
   const BADGE_COLOR = { Business: '#e2b719', Government: '#829aab' };
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -241,22 +238,15 @@
     return html.replace(/(^|[^\w])@(\w{1,15})/g, '$1<a href="/$2" data-nav>@$2</a>');
   }
 
-  function knownHtml(id) {
-    const k = followedBy.get(id);
-    if (!k || !k.total) return '';
-    const names = k.users.slice(0, 2).map((u) => esc(u.name));
-    const rest = k.total - names.length;
-    const text = rest > 0
-      ? `${names.join(', ')}, and ${rest} other${rest > 1 ? 's' : ''} you follow`
-      : names.join(' and ');
-    const faces = k.users.slice(0, 3).map((u) => `<img src="${esc(u.profile_image_url_https)}">`).join('');
-    return `<div class="known"><div class="faces">${faces}</div><div>Followed by ${text}</div></div>`;
-  }
-
   function render() {
     const u = state.user;
     if (!u) return;
-    const btn = u.iFollow ? 'Following' : u.followsMe ? 'Follow back' : 'Follow';
+    const btn = u.blocking ? 'Blocked' : u.iFollow ? 'Following' : u.followsMe ? 'Follow back' : 'Follow';
+    const at = `@${esc(u.screenName)}`;
+    const menu = state.menu ? `<div class="menu">
+      <button data-act="mute">${u.muting ? 'Unmute' : 'Mute'} ${at}</button>
+      <button data-act="block" class="danger">${u.blocking ? 'Unblock' : state.confirm === 'block' ? 'Confirm block' : 'Block'} ${at}</button>
+    </div>` : '';
     const badge = u.blue || u.verifiedType
       ? `<svg class="badge" viewBox="0 0 22 22"><path fill="${BADGE_COLOR[u.verifiedType] || '#1d9bf0'}" d="${BADGE}"/></svg>`
       : '';
@@ -265,30 +255,31 @@
       ? `<img class="avatar${u.square ? ' square' : ''}" src="${esc(u.avatar)}" style="background-image:url(${esc(JSON.stringify(u.avatarSmall))})">`
       : `<div class="avatar${u.loading ? ' sk' : ''}"></div>`;
     const details = u.loading
-      ? `<div class="sk sk-line"></div><div class="sk sk-line" style="width:70%"></div><div class="sk sk-stats"></div>`
-      : `${u.bio ? `<div class="bio">${bioHtml(u)}</div>` : ''}
-      ${u.partial ? '' : `<div class="stats">
+      ? `<div class="sk sk-stats"></div><div class="sk sk-line"></div><div class="sk sk-line" style="width:70%"></div>`
+      : `${u.partial ? '' : `<div class="stats">
         <a href="/${esc(u.screenName)}/following" data-nav><b>${count(u.following)}</b> <span>Following</span></a>
         <a href="/${esc(u.screenName)}/verified_followers" data-nav><b>${count(u.followers)}</b> <span>Followers</span></a>
-      </div>`}
-      ${knownHtml(u.id)}`;
+      </div>`}`;
     cardEl.innerHTML = `
-      <div class="top">
-        <a href="/${esc(u.screenName)}" data-nav>${avatar}</a>
-        <div class="actions">
-          ${u.id && !u.loading && u.canDM !== false ? `<a class="icon-btn" href="/messages/compose?recipient_id=${esc(u.id)}" data-nav title="Message"><svg viewBox="0 0 24 24"><path d="${MAIL}"/></svg></a>` : ''}
-          <button class="btn${u.iFollow ? ' on' : ''}" data-follow${u.id ? '' : ' disabled'}>${btn}</button>
-        </div>
+      <a class="av" href="/${esc(u.screenName)}" data-nav>${avatar}</a>
+      <div class="actions">
+        ${u.id && !u.loading ? `<button class="icon-btn" data-more title="More"><svg viewBox="0 0 24 24"><path d="${MORE}"/></svg></button>` : ''}
+        ${u.id && !u.loading && u.canDM !== false ? `<a class="icon-btn" href="/messages/compose?recipient_id=${esc(u.id)}" data-nav title="Message"><svg viewBox="0 0 24 24"><path d="${CHAT}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></a>` : ''}
+        <button class="btn${u.iFollow || u.blocking ? ' on' : ''}" data-follow${u.id ? '' : ' disabled'}>${btn}</button>
+        ${menu}
       </div>
-      <a class="name" href="/${esc(u.screenName)}" data-nav>${esc(u.name)}${badge}</a>
-      <div class="handle">@${esc(u.screenName)}${u.followsMe ? '<span class="pill">Follows you</span>' : ''}</div>
-      ${details}`;
+      <div class="who">
+        <a class="name" href="/${esc(u.screenName)}" data-nav>${esc(u.name)}${badge}</a>
+        <div class="handle">@${esc(u.screenName)}${u.followsMe ? '<span class="pill">Follows you</span>' : ''}${u.muting ? '<span class="pill">Muted</span>' : ''}</div>
+      </div>
+      <div class="details">${details}</div>
+      ${u.bio && !u.loading ? `<div class="bio">${bioHtml(u)}</div>` : ''}`;
+    if (hold) { holdButton()?.classList.add('holding'); hold.anims = fillButton(holdButton(), performance.now() - hold.start); }
     // Keep an already-loaded avatar across re-renders; fall back to the small cached size.
     const img = cardEl.querySelector('img.avatar');
     if (!img) return;
     if (prevAvatar && prevAvatar.getAttribute('src') === img.getAttribute('src')) img.replaceWith(prevAvatar);
     else img.onerror = () => { img.onerror = null; img.src = u.avatarSmall; };
-    if (hold) fillButton(performance.now() - hold.start);
   }
 
   function theme() {
@@ -319,6 +310,7 @@
     const glide = state.visible;
     state.user = user;
     state.anchor = link;
+    state.menu = state.confirm = false;
     host.setAttribute('theme', theme());
     render();
     host.style.display = 'block';
@@ -418,15 +410,41 @@
 
   // ---- Press and hold to follow ----
 
-  let hold = null; // { start, timer }
+  let hold = null; // { start, timer, sel }
+  let audio = null;
+  // Created on a user gesture so autoplay rules allow it.
+  const ensureAudio = () => { try { audio ||= new AudioContext(); audio.resume(); } catch {} };
+
+  // Soft two-note chime.
+  function chime() {
+    const ctx = audio;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    [[660, 0], [990, 0.07]].forEach(([freq, delay]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, t + delay);
+      gain.gain.linearRampToValueAtTime(0.04, t + delay + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + delay + 0.35);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t + delay);
+      osc.stop(t + delay + 0.4);
+    });
+  }
   let swallowClick = false;
 
   const followButton = () => cardEl.querySelector('[data-follow]');
+  const holdButton = () => hold && cardEl.querySelector(hold.sel);
 
-  function fillButton(elapsed) {
-    const anim = followButton()?.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
-      { duration: HOLD_MS, easing: EASE_OUT_CUBIC, fill: 'forwards', pseudoElement: '::before' });
-    if (anim) anim.currentTime = elapsed;
+  // Returns the fill animations so a cancel can stop them.
+  function fillButton(btn, elapsed) {
+    if (!btn) return [];
+    const anims = [btn.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
+      { duration: HOLD_MS, easing: EASE_OUT_CUBIC, fill: 'forwards', pseudoElement: '::before' })];
+    for (const a of anims) a.currentTime = elapsed;
+    return anims;
   }
 
   // Fill fraction at time t, so a cancel drains from where the eased fill actually is.
@@ -434,30 +452,40 @@
 
   function startHold(e) {
     const u = state.user;
-    if (!u?.id || u.loading || u.iFollow) return false;
+    if (!u?.id || u.loading || u.iFollow || u.blocking) return false;
     const path = e.composedPath();
-    const onCard = path.includes(host) && !path.some((el) => el.matches?.('[data-follow], .icon-btn'));
+    const onCard = path.includes(host) && !path.some((el) => el.matches?.('[data-follow], .icon-btn, .menu'));
     if (!onCard && !state.anchor?.contains(e.target)) return false;
     e.preventDefault(); // no link drag or text selection while holding
     cancelHold();
-    hold = { start: performance.now(), timer: setTimeout(completeHold, HOLD_MS) };
-    fillButton(0);
+    hold = { start: performance.now(), timer: setTimeout(completeHold, HOLD_MS), sel: '[data-follow]' };
+    ensureAudio();
+    holdButton()?.classList.add('holding');
+    hold.anims = fillButton(holdButton(), 0);
     return true;
   }
 
   function completeHold() {
     hold = null;
     swallowClick = true; // the release shouldn't also open the profile
-    toggleFollow();
+    chime();
+    toggle('follow');
+    if (!reduced()) {
+      followButton()?.animate([{ transform: 'scale(.96)' }, { transform: 'scale(1.04)' }, { transform: 'scale(1)' }],
+        { duration: 300, easing: EASE_OUT_CUBIC });
+    }
   }
 
   function cancelHold() {
     if (!hold) return;
     clearTimeout(hold.timer);
     const p = fillAt(Math.min(1, (performance.now() - hold.start) / HOLD_MS));
+    const btn = holdButton();
+    // The fill animations hold their end state, so they must go or the fill comes back.
+    for (const a of hold.anims || []) a.cancel();
     hold = null;
-    followButton()?.animate([{ transform: `scaleX(${p})` }, { transform: 'scaleX(0)' }],
-      { duration: 200, easing: EASE_OUT_CUBIC, pseudoElement: '::before' });
+    btn?.classList.remove('holding');
+    btn?.animate([{ transform: `scaleX(${p})` }, { transform: 'scaleX(0)' }], { duration: 200, easing: EASE_OUT_CUBIC, pseudoElement: '::before' });
   }
 
   addEventListener('mouseup', () => {
@@ -475,7 +503,28 @@
   // Same-tab links go through X's router instead of a full page load.
   root.addEventListener('click', (e) => {
     const followBtn = e.target.closest('[data-follow]');
-    if (followBtn) return toggleFollow();
+    if (followBtn) return toggle(state.user.blocking ? 'block' : 'follow');
+    if (e.target.closest('[data-more]')) {
+      state.menu = !state.menu;
+      state.confirm = false;
+      return render();
+    }
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (act) {
+      // Blocking takes a second click so a stray click can't block someone.
+      if (act === 'block' && !state.user.blocking && state.confirm !== act) {
+        state.confirm = act;
+        return render();
+      }
+      state.menu = state.confirm = false;
+      const blocking = act === 'block' && !state.user.blocking;
+      toggle(act);
+      return blocking && bonk();
+    }
+    if (state.menu) {
+      state.menu = state.confirm = false;
+      render();
+    }
     const a = e.target.closest('a[data-nav]');
     if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
@@ -484,25 +533,51 @@
     dispatchEvent(new PopStateEvent('popstate', { state: {} }));
   });
 
-  async function toggleFollow() {
+  const ACTIONS = {
+    follow: { key: 'iFollow', on: 'friendships/create', off: 'friendships/destroy' },
+    mute: { key: 'muting', on: 'mutes/users/create', off: 'mutes/users/destroy' },
+    block: { key: 'blocking', on: 'blocks/create', off: 'blocks/destroy' },
+  };
+
+  async function toggle(action) {
     const u = state.user;
-    const next = !u.iFollow;
-    u.iFollow = next;
-    overrides.set(u.id, { following: next });
+    const { key, on, off } = ACTIONS[action];
+    const prev = { iFollow: u.iFollow, muting: u.muting, blocking: u.blocking };
+    const save = () => overrides.set(u.id, { iFollow: u.iFollow, muting: u.muting, blocking: u.blocking });
+    const next = !u[key];
+    u[key] = next;
+    if (action === 'block' && next) u.iFollow = false; // X unfollows on block
+    save();
     render();
     try {
-      const res = await fetch(`/i/api/1.1/friendships/${next ? 'create' : 'destroy'}.json`, {
+      const res = await fetch(`/i/api/1.1/${next ? on : off}.json`, {
         method: 'POST',
         credentials: 'include',
         headers: { ...apiHeaders(), 'content-type': 'application/x-www-form-urlencoded' },
         body: `user_id=${encodeURIComponent(u.id)}`,
       });
       if (!res.ok) throw new Error(res.status);
+      return true;
     } catch (err) {
-      console.warn('[x-hovercard] follow failed', err);
-      u.iFollow = !next;
-      overrides.set(u.id, { following: !next });
+      console.warn(`[x-hovercard] ${action} failed`, err);
+      Object.assign(u, prev);
+      save();
       if (state.user === u) render();
+      return false;
     }
+  }
+
+  // ---- Block animations ----
+
+  const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Normal block: the card flinches and "Blocked" stamps down.
+  function bonk() {
+    if (reduced()) return;
+    cardEl.animate([0, -10, 9, -6, 4, -2, 0].map((x) => ({ transform: `translateX(${x}px)` })),
+      { duration: 400, easing: 'ease-out' });
+    cardEl.animate([{ boxShadow: '0 0 0 2px #f4212e, 0 0 24px #f4212e' }, {}], { duration: 600 });
+    followButton()?.animate([{ transform: 'scale(1.6) rotate(-10deg)', opacity: 0 }, { transform: 'none', opacity: 1 }],
+      { duration: 260, easing: 'cubic-bezier(.5, 0, .75, 0)' });
   }
 })();
