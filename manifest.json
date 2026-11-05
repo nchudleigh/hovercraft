@@ -46,7 +46,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["sounds/party.mp3"],
+      "resources": ["sounds/*.mp3"],
       "matches": ["https://x.com/*", "https://twitter.com/*"]
     }
   ],

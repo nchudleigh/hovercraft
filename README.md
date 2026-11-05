@@ -30,6 +30,7 @@ Hovercraft replaces it with a card that keeps up with your mouse.
 | 👋 **Gets out of the way** | Hides the moment you leave, unless you're heading into the card. |
 | ✊ **Hold to follow** | Press and hold a profile or its card for a second to follow. The Follow button fills as you hold. |
 | 💀 **Hold to block** | Hold the skull on a card for a second to block that account. A red ring fills as you hold; let go early to cancel. Confetti bursts out of their avatar, and on a reply, the reply is removed from the timeline. |
+| 🎙️ **Halo 3 multikills** | Chain successful skull blocks in one tab. Each block within four seconds of the previous one advances the chain, with an announcement from Double Kill (2) through Killionaire (10). A longer gap starts a new chain. |
 | 🔇 **Mute and block menu** | The ⋯ button on the card mutes or blocks. Block asks for a second click so a stray click can't block anyone. |
 | ⏩ **Hold for 2×** | Press and hold a playing video to watch at 2× speed, like the phone app. Let go to return to normal. |
 | 📡 **No network wait** | Reads the profile data X already loaded for the page. |
@@ -59,7 +60,7 @@ Click the Hovercraft icon in the toolbar to turn it off and bring back X's own h
 - `card.css` hides X's native hover card.
 - `card.js` runs in the page so it can read X's React data for the hovered profile, then draws its own card in a shadow root.
 - Follow, mute and block call X's API with your existing session. If a block fails, the removed reply comes back.
-- `bridge.js` passes the on/off setting to the page and plays the confetti sound. It plays there, not in `card.js`, because X's content rules would block it in the page.
+- `bridge.js` passes the on/off setting to the page, tracks confirmed skull blocks, and plays the confetti and announcer sounds in the extension context so X's media restrictions don't block playback.
 - `video.js` handles hold-for-2× on videos.
 - The confetti and its sound come from Beachball: a canvas port of its confetti burst and its rally sound (`sounds/party.mp3`).
 
@@ -90,4 +91,4 @@ No data is collected or sent anywhere. See [PRIVACY.md](PRIVACY.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) for the code. See the [audio credits](sounds/NOTICE.md) for the Halo 3 recordings.
