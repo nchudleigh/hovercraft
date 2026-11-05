@@ -9,13 +9,22 @@ document.addEventListener('hovercraft:party', () => {
   partySound.play().catch((err) => console.warn('[hovercraft] party sound', err));
 });
 
-const MULTIKILL_MS = 4000;
+const MULTIKILL_MS = 10000;
 const multikillSounds = [
   'double_kill', 'triple_kill', 'overkill', 'killtacular', 'killtrocity',
   'killimanjaro', 'killtastrophe', 'killpocalypse', 'killionaire',
 ];
+const spreeSounds = {
+  5: 'killing_spree',
+  10: 'killing_frenzy',
+  15: 'running_riot',
+  20: 'rampage',
+  25: 'untouchable',
+  30: 'invincible',
+};
 let lastBlock = -Infinity;
-let blockCount = 0;
+let multikillCount = 0;
+let spreeCount = 0;
 let announcer = null;
 const pendingAnnouncements = [];
 
@@ -38,11 +47,12 @@ function playAnnouncement() {
 document.addEventListener('hovercraft:skull-blocked', () => {
   if (html.dataset.hovercraft === 'off') return;
   const now = performance.now();
-  blockCount = now - lastBlock <= MULTIKILL_MS ? blockCount + 1 : 1;
+  multikillCount = now - lastBlock <= MULTIKILL_MS ? multikillCount + 1 : 1;
   lastBlock = now;
-  const sound = multikillSounds[blockCount - 2];
-  if (!sound) return;
-  pendingAnnouncements.push(sound);
+  const multikill = multikillSounds[multikillCount - 2];
+  const spree = spreeSounds[++spreeCount];
+  if (multikill) pendingAnnouncements.push(multikill);
+  if (spree) pendingAnnouncements.push(spree);
   playAnnouncement();
 });
 
@@ -50,6 +60,7 @@ function apply(enabled) {
   html.dataset.hovercraft = enabled === false ? 'off' : 'on';
   if (enabled === false) {
     lastBlock = -Infinity;
+    spreeCount = 0;
     pendingAnnouncements.length = 0;
     announcer?.pause();
     announcer = null;

@@ -8,6 +8,7 @@ const sounds = [
   'double_kill', 'triple_kill', 'overkill', 'killtacular', 'killtrocity',
   'killimanjaro', 'killtastrophe', 'killpocalypse', 'killionaire',
 ];
+const sprees = ['killing_spree', 'killing_frenzy', 'running_riot', 'rampage', 'untouchable', 'invincible'];
 
 function loadBridge() {
   const document = new EventTarget();
@@ -60,23 +61,37 @@ test('announces each Halo 3 tier once, through Killionaire', () => {
   blockAt(0);
   assert.deepEqual(names(), []);
   for (let kill = 2; kill <= 12; kill++) {
+    const before = played.length;
     blockAt((kill - 1) * 1500);
-    played.at(-1).dispatchEvent(new Event('ended'));
+    for (let i = before; i < played.length; i++) played[i].dispatchEvent(new Event('ended'));
   }
-  assert.deepEqual(names(), sounds);
+  assert.deepEqual(names(), [
+    ...sounds.slice(0, 4), 'killing_spree', ...sounds.slice(4), 'killing_frenzy',
+  ]);
 });
 
-test('uses a rolling four-second window; birthday events do not count', () => {
+test('awards each spree at its block count regardless of elapsed time', () => {
+  const { blockAt, names, played } = loadBridge();
+  for (let count = 1; count <= 35; count++) {
+    const before = played.length;
+    blockAt(count * 11000);
+    const expected = sprees.slice(0, Math.floor(count / 5));
+    assert.deepEqual(names(), expected);
+    if (played.length > before) played.at(-1).dispatchEvent(new Event('ended'));
+  }
+});
+
+test('uses a rolling ten-second window; birthday events do not count', () => {
   const { blockAt, names, party, played } = loadBridge();
   blockAt(0);
   party();
-  blockAt(4000);
+  blockAt(10000);
   played.at(-1).dispatchEvent(new Event('ended'));
-  blockAt(8000);
+  blockAt(20000);
   played.at(-1).dispatchEvent(new Event('ended'));
-  blockAt(12001);
+  blockAt(30001);
   assert.deepEqual(names(), ['party', 'double_kill', 'triple_kill']);
-  blockAt(12002);
+  blockAt(30002);
   assert.deepEqual(names(), ['party', 'double_kill', 'triple_kill', 'double_kill']);
 });
 
@@ -102,4 +117,7 @@ test('disabling stops audio and clears pending clips and streak progress', () =>
   assert.deepEqual(names(), ['double_kill']);
   blockAt(5000);
   assert.deepEqual(names(), ['double_kill', 'double_kill']);
+  played.at(-1).dispatchEvent(new Event('ended'));
+  [16000, 27000, 38000].forEach(blockAt);
+  assert.deepEqual(names(), ['double_kill', 'double_kill', 'killing_spree']);
 });
