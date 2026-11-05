@@ -80,7 +80,7 @@ Everything lives at the top of `card.js`:
 | `NEAR_PX` | `16` | How far from a profile still counts as "between profiles" |
 | `HOLD_MS` | `1000` | How long to hold to follow or to block with the skull |
 
-Colors are CSS variables (`--bg`, `--stroke`, `--outer`, …) in the same file.
+Colors are CSS variables (`--bg`, `--shadow`, `--btn-line`, …) in the same file.
 
 ## Caveats
 
