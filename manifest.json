@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Hovercraft",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Replaces X's profile hover card with an instant one that glides between profiles.",
   "permissions": [
     "storage"
@@ -42,6 +42,12 @@
       ],
       "run_at": "document_start",
       "world": "MAIN"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["sounds/party.mp3"],
+      "matches": ["https://x.com/*", "https://twitter.com/*"]
     }
   ],
   "icons": {

@@ -3,25 +3,27 @@
 <head>
 <meta charset="utf-8">
 <style>
-  :root { --bg:#fff; --fg:#0f1419; --dim:#536471; --track:#cfd9de; color-scheme:light dark; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#16181c; --fg:#e7e9ea; --dim:#71767b; --track:#3e4144; } }
-  body { margin:0; width:260px; background:var(--bg); color:var(--fg);
+  :root { --bg:#fff; --fg:#0f1419; --dim:#536471; --track:#cfd9de; --shadow:0 1px 2px rgba(0,0,0,.12); color-scheme:light dark; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181c; --fg:#e7e9ea; --dim:#71767b; --track:#3e4144; --shadow:0 1px 2px rgba(0,0,0,.5); }
+  }
+  body { margin:0; width:300px; background:var(--bg); color:var(--fg);
     font:14px/18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  label { display:flex; align-items:center; gap:12px; padding:14px 16px; cursor:pointer; }
-  img { width:32px; height:32px; }
-  .text { flex:1; }
-  .name { font-weight:700; }
-  .sub { color:var(--dim); font-size:12px; }
-  input { appearance:none; margin:0; width:40px; height:24px; border-radius:12px; background:var(--track);
+  .head { display:flex; align-items:center; gap:12px; padding:16px; cursor:pointer; }
+  .head img { width:36px; height:36px; flex:none; }
+  .text { flex:1; min-width:0; }
+  .name { font-weight:700; font-size:15px; }
+  .sub { color:var(--dim); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #enabled { appearance:none; margin:0; width:40px; height:24px; border-radius:12px; background:var(--track);
     position:relative; cursor:pointer; transition:background .15s; flex:none; }
-  input::after { content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%;
-    background:#fff; transition:transform .15s ease-out; }
-  input:checked { background:#1d9bf0; }
-  input:checked::after { transform:translateX(16px); }
+  #enabled::after { content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%;
+    background:#fff; box-shadow:var(--shadow); transition:transform .15s ease-out; }
+  #enabled:checked { background:#1d9bf0; }
+  #enabled:checked::after { transform:translateX(16px); }
 </style>
 </head>
 <body>
-  <label>
+  <label class="head">
     <img src="icons/icon48.png" alt="">
     <span class="text"><div class="name">Hovercraft</div><div class="sub">Instant hover cards on X</div></span>
     <input type="checkbox" id="enabled" checked>
