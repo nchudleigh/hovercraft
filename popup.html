@@ -18,6 +18,8 @@
     background:#fff; transition:transform .15s ease-out; }
   input:checked { background:#1d9bf0; }
   input:checked::after { transform:translateX(16px); }
+  label + label { border-top:1px solid var(--track); }
+  select { font:inherit; color:var(--fg); background:var(--bg); border:1px solid var(--track); border-radius:8px; padding:4px 6px; }
 </style>
 </head>
 <body>
@@ -25,6 +27,10 @@
     <img src="icons/icon48.png" alt="">
     <span class="text"><div class="name">Hovercraft</div><div class="sub">Instant hover cards on X</div></span>
     <input type="checkbox" id="enabled" checked>
+  </label>
+  <label>
+    <span class="text"><div class="name">💀 Skull animation</div><div class="sub">Hold the skull to block an AI reply</div></span>
+    <select id="blast"><option value="party">Party</option><option value="laser">Laser</option></select>
   </label>
   <script src="popup.js"></script>
 </body>
