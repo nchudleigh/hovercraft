@@ -21,6 +21,7 @@
   const overrides = new Map(); // user id -> { iFollow, muting, blocking }
   const fetched = new Map(); // handle -> full user, for profiles the page only had stubs for
   const inflight = new Map(); // handle -> Promise<full user | null>
+  const followedBy = new Map(); // user id -> { users, total }
 
   const apiHeaders = () => ({
     authorization: auth.authorization,
@@ -33,6 +34,22 @@
   XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
     if (name.toLowerCase() === 'authorization') auth.authorization = value;
     return origSetHeader.apply(this, arguments);
+  };
+
+  // X's hidden native card still requests "followers you know"; reuse the response, no extra request.
+  const origOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (method, url) {
+    if (String(url).includes('/friends/following/list.json')) {
+      const id = new URL(url, location.origin).searchParams.get('user_id');
+      this.addEventListener('load', () => {
+        try {
+          const data = JSON.parse(this.responseText);
+          followedBy.set(id, { users: data.users || [], total: data.total_count || 0 });
+          if (state.visible && state.user?.id === id) { render(); place(state.anchor, true); }
+        } catch {}
+      });
+    }
+    return origOpen.apply(this, arguments);
   };
 
   const fiberOf = (el) => {
@@ -196,7 +213,7 @@
     .handle { color:var(--dim); display:flex; align-items:center; gap:4px; }
     .pill { font-size:12px; line-height:16px; padding:0 4px; border-radius:4px; background:var(--line); color:var(--dim); }
     .card { display:grid; grid-template-columns:auto 1fr; column-gap:10px;
-      grid-template-areas:"av who" "details details" "actions actions" "bio bio"; }
+      grid-template-areas:"av who" "details details" "actions actions" "bio bio" "known known"; }
     .av { grid-area:av; align-self:center; } .who { grid-area:who; align-self:center; min-width:0; }
     .details { grid-area:details; min-width:0; } .bio { grid-area:bio; min-width:0; }
     .actions { grid-area:actions; margin-top:12px; } [data-follow] { flex:1; }
@@ -204,6 +221,10 @@
     .bio a { color:var(--link); }
     .stats { margin-top:12px; display:flex; gap:20px; }
     .stats b { color:var(--fg); } .stats span { color:var(--dim); }
+    .known { grid-area:known; margin-top:12px; display:flex; align-items:center; gap:8px; color:var(--dim); font-size:13px; line-height:16px; }
+    .known img { width:20px; height:20px; border-radius:50%; border:2px solid var(--bg); flex:none; }
+    .known img + img { margin-left:-10px; }
+    .known .faces { display:flex; flex:none; }
     .sk { background:var(--line); border-radius:6px; animation:pulse 1.2s ease-in-out infinite; }
     .avatar.sk { border-radius:50%; }
     .sk-line { height:12px; margin-top:8px; } .sk-stats + .sk-line { margin-top:16px; }
@@ -245,6 +266,19 @@
     return html.replace(/(^|[^\w])@(\w{1,15})/g, '$1<a href="/$2" data-nav>@$2</a>');
   }
 
+  // X's wording: up to three names, or two names "and N others you follow".
+  function knownHtml(u) {
+    const k = followedBy.get(u.id);
+    if (!k?.total) return '';
+    const names = k.users.slice(0, 3).map((f) => esc(f.name));
+    const text = k.total > 3
+      ? `${names[0]}, ${names[1]}, and ${k.total - 2} others you follow`
+      : names.length === 3 ? `${names[0]}, ${names[1]}, and ${names[2]}` : names.join(' and ');
+    const faces = k.users.slice(0, 3)
+      .map((f, i) => `<img src="${esc(f.profile_image_url_https)}" style="z-index:${3 - i}">`).join('');
+    return `<a class="known" href="/${esc(u.screenName)}/followers_you_follow" data-nav><div class="faces">${faces}</div><div>Followed by ${text}</div></a>`;
+  }
+
   function render() {
     const u = state.user;
     if (!u) return;
@@ -281,7 +315,8 @@
         <div class="handle">@${esc(u.screenName)}${u.followsMe ? '<span class="pill">Follows you</span>' : ''}${u.muting ? '<span class="pill">Muted</span>' : ''}</div>
       </div>
       <div class="details">${details}</div>
-      ${u.bio && !u.loading ? `<div class="bio">${bioHtml(u)}</div>` : ''}`;
+      ${u.bio && !u.loading ? `<div class="bio">${bioHtml(u)}</div>` : ''}
+      ${u.loading ? '' : knownHtml(u)}`;
     if (hold) { holdButton()?.classList.add('holding'); hold.anims = fillButton(holdButton(), performance.now() - hold.start); }
     // Keep an already-loaded avatar across re-renders; fall back to the small cached size.
     const img = cardEl.querySelector('img.avatar');

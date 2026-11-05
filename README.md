@@ -35,7 +35,7 @@ Hovercraft replaces it with a card that keeps up with your mouse.
 | 🔇 **Mute and block menu** | The ⋯ button on the card mutes or blocks. Block asks for a second click so a stray click can't block anyone. |
 | ⏩ **Hold for 2×** | Press and hold a playing video to watch at 2× speed, like the phone app. Let go to return to normal. |
 | 📡 **No network wait** | Reads the profile data X already loaded for the page. |
-| 🎨 **Native look** | Follow button, verified badges, "Follows you", bio and counts. Matches Light, Dim and Lights out. |
+| 🎨 **Native look** | Follow button, verified badges, "Follows you", bio, counts and "Followed by…". Matches Light, Dim and Lights out. |
 
 <p align="center"><img src="docs/media/block.gif" width="640" alt="Holding the skull on a reply's hover card: a red ring fills, confetti bursts from the avatar, and the reply disappears"></p>
 
