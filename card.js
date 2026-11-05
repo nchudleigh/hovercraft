@@ -609,8 +609,8 @@
       { duration: 260, easing: 'cubic-bezier(.5, 0, .75, 0)' });
   }
 
-  // Skull hold: block the author, then get rid of their reply in style. Style comes from the popup.
-  // Outside a tweet there's no reply to remove; the animation hits the hovered profile link instead.
+  // Skull hold: block the author, confetti out of their avatar, and remove their reply.
+  // Outside a tweet there's no reply to remove, so it's just the confetti.
   function blast() {
     const anchor = state.anchor;
     const article = anchor?.closest('article');
@@ -627,8 +627,6 @@
     } else if (reduced()) {
       const fade = cell.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' });
       restore = () => fade.cancel();
-    } else if (document.documentElement.dataset.hovercraftBlast === 'laser') {
-      restore = laser(article || anchor, cell);
     } else {
       restore = party(article, cell, head);
     }
@@ -643,98 +641,9 @@
     return () => { a.cancel(); cell.style.overflow = ''; };
   }
 
-  const FIRE_MS = 450; // reticle lock-on before the beam fires
-  const IMPACT_MS = FIRE_MS + 90;
-  const FX_CSS = `
-    div { position:fixed; pointer-events:none; }
-    .sat { font-size:40px; line-height:40px; margin:-20px 0 0 -20px; filter:drop-shadow(0 0 8px #ff2a6d); }
-    .reticle { width:96px; height:96px; margin:-50px 0 0 -50px; border:2px solid #ff2a6d; border-radius:50%;
-      box-shadow:0 0 12px #ff2a6d, inset 0 0 12px #ff2a6d; opacity:0; }
-    .reticle::before, .reticle::after { content:""; position:absolute; left:47px; top:-16px; bottom:-16px; width:2px; background:#ff2a6d; }
-    .reticle::after { transform:rotate(90deg); }
-    .beam { height:16px; margin-top:-8px; transform-origin:0 50%; border-radius:8px;
-      background:linear-gradient(transparent, #ff2a6d 20%, #fff 40%, #fff 60%, #ff2a6d 80%, transparent);
-      box-shadow:0 0 30px 10px rgba(255,42,109,.55); }
-    .flash { width:240px; height:240px; margin:-120px 0 0 -120px; border-radius:50%; opacity:0;
-      background:radial-gradient(#fff, #ffd166 30%, #ff2a6d 55%, transparent 70%); }
-    .ring { width:60px; height:60px; margin:-33px 0 0 -33px; border-radius:50%; border:3px solid #ffd166; opacity:0; }
-    .spark { width:6px; height:6px; margin:-3px 0 0 -3px; border-radius:50%; background:#ffd166; box-shadow:0 0 8px #ff8c42; opacity:0; }`;
-
-  // Returns a function that undoes the damage if the block fails.
-  function laser(article, cell) { // cell is null outside a tweet: burn and recover, don't collapse
-    const r = article.getBoundingClientRect();
-    const tx = r.left + r.width / 2;
-    const ty = Math.min(Math.max(r.top + r.height / 2, 60), innerHeight - 60);
-    const fromRight = tx < innerWidth / 2;
-    const sx = fromRight ? innerWidth - 28 : 28;
-    const sy = Math.max(40, ty - Math.abs(tx - sx) * 0.6);
-    const rot = `rotate(${Math.atan2(ty - sy, tx - sx)}rad)`;
-
-    const fx = document.createElement('div');
-    fx.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;';
-    const sr = fx.attachShadow({ mode: 'open' });
-    sr.innerHTML = `<style>${FX_CSS}</style>`;
-    const add = (cls, x, y, css = '') => {
-      const d = document.createElement('div');
-      d.className = cls;
-      d.style.cssText = `left:${x}px;top:${y}px;${css}`;
-      return sr.appendChild(d);
-    };
-    document.documentElement.appendChild(fx);
-    zap();
-
-    const off = fromRight ? 90 : -90;
-    const sat = add('sat', sx, sy, fromRight ? '' : 'scale:-1 1;');
-    sat.textContent = '🛰️';
-    sat.animate([
-      { translate: `${off}px` }, { translate: '0', offset: 0.22 }, { translate: '0', offset: 0.25 },
-      { translate: `${off * 0.25}px`, offset: 0.28 }, { translate: '0', offset: 0.4 },
-      { translate: '0', offset: 0.78 }, { translate: `${off}px` },
-    ], { duration: 1800, fill: 'both' });
-
-    add('reticle', tx, ty).animate([
-      { transform: 'scale(2.4) rotate(-90deg)', opacity: 0 },
-      { transform: 'none', opacity: 1, offset: 0.6 },
-      { opacity: 0.3, offset: 0.75 }, { opacity: 1, offset: 0.9 },
-      { transform: 'scale(.6)', opacity: 0 },
-    ], { duration: FIRE_MS + 150, easing: 'ease-out' });
-
-    add('beam', sx, sy, `width:${Math.hypot(tx - sx, ty - sy)}px;transform:${rot} scale(0,1)`).animate(
-      [[0, 1], [1, 1.6], [1, 0.8], [1, 1.3], [1, 0.9], [1, 1.2], [1, 1], [1, 0]]
-        .map(([x, y]) => ({ transform: `${rot} scale(${x}, ${y})` })),
-      { delay: FIRE_MS, duration: 900, fill: 'forwards' });
-
-    add('flash', tx, ty).animate([{ transform: 'scale(0)', opacity: 1 }, { transform: 'scale(1.5)', opacity: 0 }],
-      { delay: IMPACT_MS, duration: 500, easing: EASE_OUT_CUBIC });
-    add('ring', tx, ty).animate([{ transform: 'scale(0)', opacity: 1 }, { transform: 'scale(8)', opacity: 0 }],
-      { delay: IMPACT_MS, duration: 700, easing: EASE_OUT_CUBIC });
-    for (let i = 0; i < 28; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = 60 + Math.random() * 180;
-      add('spark', tx, ty).animate([
-        { transform: 'none', opacity: 1 },
-        { transform: `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d}px) scale(0)`, opacity: 0.6 },
-      ], { delay: IMPACT_MS + Math.random() * 300, duration: 500 + Math.random() * 400, easing: 'cubic-bezier(.2, .8, .3, 1)' });
-    }
-
-    document.querySelector('main')?.animate([0, -8, 7, -5, 4, -2, 0].map((x) => ({ transform: `translate(${x}px, ${x / 2}px)` })),
-      { delay: IMPACT_MS, duration: 350 });
-
-    const burn = article.animate([
-      { filter: 'none' },
-      { filter: 'brightness(3) saturate(0)', offset: 0.08 },
-      { filter: 'sepia(1) saturate(4) hue-rotate(-30deg) brightness(.7)', offset: 0.4 },
-      { filter: 'sepia(1) brightness(.2) contrast(2) blur(1px)', offset: 0.7 },
-      { filter: 'brightness(0) blur(8px)', opacity: 0, transform: 'scale(.92)' },
-    ], { delay: IMPACT_MS, duration: 1200, easing: 'ease-in', fill: cell ? 'forwards' : 'none' });
-    const uncollapse = cell ? collapse(cell, IMPACT_MS + 1200) : () => {};
-    setTimeout(() => fx.remove(), IMPACT_MS + 1500);
-    return () => { burn.cancel(); uncollapse(); };
-  }
-
   // Grunt birthday party: confetti out of their head, then the reply goes.
   function party(article, cell, head) {
-    toot();
+    document.dispatchEvent(new Event('hovercraft:party')); // bridge.js plays the sound
     confetti(head.left + head.width / 2, head.top + head.height / 2);
     if (!cell) return () => {};
     const out = article.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(.96)', filter: 'blur(4px)' }],
@@ -862,48 +771,5 @@
       }
       requestAnimationFrame(frame);
     });
-  }
-
-  // Confetti pop plus a short party-horn toot.
-  function toot() {
-    const ctx = audio;
-    if (!ctx) return;
-    const t = ctx.currentTime;
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length) ** 3;
-    const pop = ctx.createBufferSource();
-    const popGain = ctx.createGain();
-    pop.buffer = buf;
-    popGain.gain.value = 0.15;
-    pop.connect(popGain).connect(ctx.destination);
-    pop.start(t);
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(500, t + 0.05);
-    osc.frequency.exponentialRampToValueAtTime(820, t + 0.3);
-    gain.gain.setValueAtTime(0.015, t + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t + 0.05);
-    osc.stop(t + 0.5);
-  }
-
-  // Descending sawtooth "pew", timed to the beam.
-  function zap() {
-    const ctx = audio;
-    if (!ctx) return;
-    const t = ctx.currentTime + FIRE_MS / 1000;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(1800, t);
-    osc.frequency.exponentialRampToValueAtTime(40, t + 0.8);
-    gain.gain.setValueAtTime(0.03, t);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t);
-    osc.stop(t + 1);
   }
 })();

@@ -1,10 +1,16 @@
-// Mirrors popup settings onto <html> so card.js, card.css and video.js can see them.
+// Mirrors the popup toggle onto <html> so card.js, card.css and video.js can see it.
 const html = document.documentElement;
 const apply = (enabled) => (html.dataset.hovercraft = enabled === false ? 'off' : 'on');
-const applyBlast = (blast) => (html.dataset.hovercraftBlast = blast || 'party');
 
-chrome.storage.local.get(['enabled', 'blast'], ({ enabled, blast }) => { apply(enabled); applyBlast(blast); });
+chrome.storage.local.get('enabled', ({ enabled }) => apply(enabled));
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.enabled) apply(changes.enabled.newValue);
-  if (changes.blast) applyBlast(changes.blast.newValue);
+});
+
+// Played here, not in card.js, so X's media CSP doesn't apply. Sound: Beachball's rally.
+const partySound = new Audio(chrome.runtime.getURL('sounds/party.mp3'));
+partySound.volume = 0.3;
+document.addEventListener('hovercraft:party', () => {
+  partySound.currentTime = 0;
+  partySound.play().catch((err) => console.warn('[hovercraft] party sound', err));
 });
