@@ -39,6 +39,8 @@ Hovercraft replaces it with a card that keeps up with your mouse.
 
 <p align="center"><img src="docs/media/block.gif" width="640" alt="Holding the skull on a reply's hover card: a red ring fills, confetti bursts from the avatar, and the reply disappears"></p>
 
+<p align="center"><a href="docs/media/walkthrough.mp4"><img src="docs/media/walkthrough.jpg" width="640" alt="Walkthrough video: blocking accounts from a post's Likes list with the hover card"></a><br><sub><a href="docs/media/walkthrough.mp4">Watch the walkthrough (with sound)</a></sub></p>
+
 ## Install
 
 Get it from the [Chrome Web Store](https://chromewebstore.google.com/detail/hovercraft/pbemffbaccogejhogjkehhaocjehdiek). Store installs update automatically.
