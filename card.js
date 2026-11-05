@@ -161,14 +161,16 @@
   host.style.cssText = 'position:fixed;left:0;top:0;z-index:2147483647;display:none;';
   const root = host.attachShadow({ mode: 'open' });
   root.innerHTML = `<style>
-    :host { --bg:#16181c; --fg:#e7e9ea; --dim:#71767b; --line:#2f3336; --link:#1d9bf0;
-      --stroke:#3e4144; --outer:#0b0c0e; --btn-bg:#eff3f4; --btn-fg:#0f1419; }
-    :host([theme=dim]) { --bg:#1e2732; --dim:#8b98a5; --line:#38444d; --stroke:#4a5560; }
+    /* X's theme tokens; Lights out and Dim share the card palette. */
+    :host { --bg:#141414; --fg:#e7e9ea; --dim:#71767b; --line:#2f3336; --link:#1d9bf0;
+      --shadow:0 4px 12px rgba(0,0,0,.5), 0 0 2px rgba(0,0,0,.35);
+      --btn-bg:#eff3f4; --btn-fg:#0f1419; --btn-hover:#d7dbdc; --btn-line:#536471; --danger-line:#67070f; }
+    :host([theme=dim]) { --line:#38444d; --shadow:0 0 15px rgba(101,119,134,.2), 0 0 3px 1px rgba(101,119,134,.15); }
     :host([theme=light]) { --bg:#fff; --fg:#0f1419; --dim:#536471; --line:#cfd9de;
-      --stroke:#cfd9de; --outer:rgba(0,0,0,.08); --btn-bg:#0f1419; --btn-fg:#fff; }
+      --shadow:0 0 15px rgba(101,119,134,.2), 0 0 3px 1px rgba(101,119,134,.15);
+      --btn-bg:#0f1419; --btn-fg:#fff; --btn-hover:#272c30; --btn-line:#cfd9de; --danger-line:#fdc9ce; }
     .card { width:${CARD_WIDTH}px; box-sizing:border-box; padding:16px; border-radius:16px;
-      background:var(--bg); color:var(--fg);
-      border:1px solid var(--stroke); box-shadow:0 0 0 1px var(--outer);
+      background:var(--bg); color:var(--fg); box-shadow:var(--shadow);
       font:15px/20px TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     a { color:inherit; text-decoration:none; } a:hover { text-decoration:underline; }
     .avatar { width:44px; height:44px; border-radius:50%; object-fit:cover; display:block; background:var(--line) center/cover; }
@@ -176,8 +178,9 @@
     .btn { border:1px solid transparent; border-radius:9999px; padding:0 12px; height:32px; min-width:88px; white-space:nowrap;
       font:700 15px TwitterChirp, -apple-system, sans-serif; cursor:pointer;
       background:var(--btn-bg); color:var(--btn-fg); }
-    .btn.on { background:transparent; color:var(--fg); border-color:var(--line); }
-    .btn.on:hover { color:#f4212e; border-color:#67070f; background:rgba(244,33,46,.1); }
+    .btn:not(.on):not([disabled]):hover { background:var(--btn-hover); }
+    .btn.on { background:transparent; color:var(--fg); border-color:var(--btn-line); }
+    .btn.on:hover { color:#f4212e; border-color:var(--danger-line); background:rgba(244,33,46,.1); }
     .btn { position:relative; overflow:hidden; isolation:isolate;
       transition:transform 160ms ${EASE_OUT_CUBIC}, background-color 200ms, color 200ms; }
     .btn::before { content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit;
@@ -209,14 +212,14 @@
     .actions { display:flex; gap:6px; flex:none; position:relative; }
     button.icon-btn { background:none; padding:0; cursor:pointer; }
     .menu { position:absolute; left:0; top:38px; z-index:1; min-width:180px; padding:4px; border-radius:12px;
-      background:var(--bg); border:1px solid var(--stroke); box-shadow:0 8px 24px rgba(0,0,0,.25); }
+      background:var(--bg); border:1px solid var(--line); box-shadow:var(--shadow); }
     .menu button { display:block; width:100%; padding:8px 12px; border:0; border-radius:8px; background:none;
       color:var(--fg); font:inherit; font-weight:700; text-align:left; cursor:pointer; }
     .menu button:hover { background:rgba(127,127,127,.1); }
     .menu .danger { color:#f4212e; }
-    .icon-btn { width:32px; height:32px; box-sizing:border-box; border:1px solid var(--line); border-radius:50%;
+    .icon-btn { width:32px; height:32px; box-sizing:border-box; border:1px solid var(--btn-line); border-radius:50%;
       display:flex; align-items:center; justify-content:center; color:var(--fg); }
-    .icon-btn:hover { background:rgba(127,127,127,.1); text-decoration:none; }
+    .icon-btn:hover { background:color-mix(in srgb, currentColor 10%, transparent); text-decoration:none; }
     .icon-btn svg { width:18px; height:18px; fill:currentColor; }
     @keyframes pulse { 50% { opacity:.5; } }
   </style><div class="card"></div>`;
@@ -290,7 +293,7 @@
   function theme() {
     const bg = getComputedStyle(document.body).backgroundColor;
     if (bg === 'rgb(255, 255, 255)') return 'light';
-    if (bg === 'rgb(21, 32, 43)') return 'dim';
+    if (bg === 'rgb(1, 12, 18)' || bg === 'rgb(21, 32, 43)') return 'dim'; // new and old Dim
     return 'dark';
   }
 
