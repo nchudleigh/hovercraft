@@ -29,10 +29,13 @@ Hovercraft replaces it with a card that keeps up with your mouse.
 | 🛸 **Glides** | Moving to another profile slides the open card over and swaps its content, so it never closes and reopens. |
 | 👋 **Gets out of the way** | Hides the moment you leave, unless you're heading into the card. |
 | ✊ **Hold to follow** | Press and hold a profile or its card for a second to follow. The Follow button fills as you hold. |
-| 💀 **Hold to block** | Hold the skull on a card to block that account. On a reply, the reply gets blasted off the timeline. Pick Party (confetti) or Laser (orbital strike) in the popup. |
+| 💀 **Hold to block** | Hold the skull on a card for a second to block that account. A red ring fills as you hold; let go early to cancel. Confetti bursts out of their avatar, and on a reply, the reply is removed from the timeline. |
+| 🔇 **Mute and block menu** | The ⋯ button on the card mutes or blocks. Block asks for a second click so a stray click can't block anyone. |
 | ⏩ **Hold for 2×** | Press and hold a playing video to watch at 2× speed, like the phone app. Let go to return to normal. |
 | 📡 **No network wait** | Reads the profile data X already loaded for the page. |
 | 🎨 **Native look** | Follow button, verified badges, "Follows you", bio and counts. Matches Light, Dim and Lights out. |
+
+<p align="center"><img src="docs/media/block.gif" width="640" alt="Holding the skull on a reply's hover card: a red ring fills, confetti bursts from the avatar, and the reply disappears"></p>
 
 ## Install
 
@@ -47,11 +50,18 @@ To run from source instead:
 
 Works in Chrome and other Chromium browsers (Arc, Brave, Edge, Helium, …).
 
+## Settings
+
+Click the Hovercraft icon in the toolbar to turn it off and bring back X's own hover card.
+
 ## How it works
 
 - `card.css` hides X's native hover card.
 - `card.js` runs in the page so it can read X's React data for the hovered profile, then draws its own card in a shadow root.
-- Follow/unfollow calls X's API with your existing session.
+- Follow, mute and block call X's API with your existing session. If a block fails, the removed reply comes back.
+- `bridge.js` passes the on/off setting to the page and plays the confetti sound. It plays there, not in `card.js`, because X's content rules would block it in the page.
+- `video.js` handles hold-for-2× on videos.
+- The confetti and its sound come from Beachball: a canvas port of its confetti burst and its rally sound (`sounds/party.mp3`).
 
 ## Tweaking
 
@@ -64,12 +74,15 @@ Everything lives at the top of `card.js`:
 | `GLIDE` | `200ms` ease-out cubic | How the card slides between profiles |
 | `HIDE_GRACE_MS` | `100` | Grace period while crossing into the card or to a neighboring profile |
 | `NEAR_PX` | `16` | How far from a profile still counts as "between profiles" |
+| `HOLD_MS` | `1000` | How long to hold to follow or to block with the skull |
 
 Colors are CSS variables (`--bg`, `--stroke`, `--outer`, …) in the same file.
 
 ## Caveats
 
-X changes its markup and data often, so this can break. If a card doesn't show for someone, check the console for `[x-hovercard] no user data for <handle>` and [open an issue](https://github.com/nchudleigh/hovercraft/issues).
+X changes its markup and data often, so this can break. If a card doesn't show for someone, check the console for `[x-hovercard]` messages and [open an issue](https://github.com/nchudleigh/hovercraft/issues).
+
+A blocked reply is only removed from the page you're on. After a reload, X decides whether to show it.
 
 ## Privacy
 
