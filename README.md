@@ -32,12 +32,14 @@ Hovercraft replaces it with a card that keeps up with your mouse.
 | 💀 **Hold to block** | Hold the skull on a card for a second to block that account. A red ring fills as you hold; let go early to cancel. Confetti bursts out of their avatar, and on a reply, the reply is removed from the timeline. |
 | 🎙️ **Halo 3 multikills** | Chain successful skull blocks in one tab. Each block within ten seconds of the previous one advances the chain, with an announcement from Double Kill (2) through Killionaire (10). A longer gap starts a new chain. |
 | 🎙️ **Halo 3 killing sprees** | Successful skull blocks in the same tab count toward Killing Spree (5), Killing Frenzy (10), Running Riot (15), Rampage (20), Untouchable (25), and Invincible (30). The spree has no time limit. Reload the page or turn Hovercraft off to reset it. |
-| 🔇 **Mute and block menu** | The ⋯ button on the card mutes or blocks. Block asks for a second click so a stray click can't block anyone. |
+| 🔇 **⋯ menu** | The ⋯ button on the card mutes, blocks, or opens a Grok profile summary. Block asks for a second click so a stray click can't block anyone. |
 | ⏩ **Hold for 2×** | Press and hold a playing video to watch at 2× speed, like the phone app. Let go to return to normal. |
 | 📡 **No network wait** | Reads the profile data X already loaded for the page. |
-| 🎨 **Native look** | Follow button, verified badges, "Follows you", bio and counts. Matches Light, Dim and Lights out. |
+| 🎨 **Native look** | Follow button, verified badges, "Follows you", bio, counts and "Followed by…". Matches Light, Dim and Lights out. |
 
 <p align="center"><img src="docs/media/block.gif" width="640" alt="Holding the skull on a reply's hover card: a red ring fills, confetti bursts from the avatar, and the reply disappears"></p>
+
+<p align="center"><a href="docs/media/walkthrough.mp4"><img src="docs/media/walkthrough.jpg" width="640" alt="Walkthrough video: blocking accounts from a post's Likes list with the hover card"></a><br><sub><a href="docs/media/walkthrough.mp4">Watch the walkthrough (with sound)</a></sub></p>
 
 ## Install
 
@@ -78,7 +80,7 @@ Everything lives at the top of `card.js`:
 | `NEAR_PX` | `16` | How far from a profile still counts as "between profiles" |
 | `HOLD_MS` | `1000` | How long to hold to follow or to block with the skull |
 
-Colors are CSS variables (`--bg`, `--stroke`, `--outer`, …) in the same file.
+Colors are CSS variables (`--bg`, `--shadow`, `--btn-line`, …) in the same file.
 
 ## Caveats
 

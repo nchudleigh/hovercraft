@@ -21,6 +21,7 @@
   const overrides = new Map(); // user id -> { iFollow, muting, blocking }
   const fetched = new Map(); // handle -> full user, for profiles the page only had stubs for
   const inflight = new Map(); // handle -> Promise<full user | null>
+  const followedBy = new Map(); // user id -> { users, total }
 
   const apiHeaders = () => ({
     authorization: auth.authorization,
@@ -33,6 +34,22 @@
   XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
     if (name.toLowerCase() === 'authorization') auth.authorization = value;
     return origSetHeader.apply(this, arguments);
+  };
+
+  // X's hidden native card still requests "followers you know"; reuse the response, no extra request.
+  const origOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (method, url) {
+    if (String(url).includes('/friends/following/list.json')) {
+      const id = new URL(url, location.origin).searchParams.get('user_id');
+      this.addEventListener('load', () => {
+        try {
+          const data = JSON.parse(this.responseText);
+          followedBy.set(id, { users: data.users || [], total: data.total_count || 0 });
+          if (state.visible && state.user?.id === id) { render(); place(state.anchor, true); }
+        } catch {}
+      });
+    }
+    return origOpen.apply(this, arguments);
   };
 
   const fiberOf = (el) => {
@@ -161,14 +178,16 @@
   host.style.cssText = 'position:fixed;left:0;top:0;z-index:2147483647;display:none;';
   const root = host.attachShadow({ mode: 'open' });
   root.innerHTML = `<style>
-    :host { --bg:#16181c; --fg:#e7e9ea; --dim:#71767b; --line:#2f3336; --link:#1d9bf0;
-      --stroke:#3e4144; --outer:#0b0c0e; --btn-bg:#eff3f4; --btn-fg:#0f1419; }
-    :host([theme=dim]) { --bg:#1e2732; --dim:#8b98a5; --line:#38444d; --stroke:#4a5560; }
+    /* X's theme tokens; Lights out and Dim share the card palette. */
+    :host { --bg:#141414; --fg:#e7e9ea; --dim:#71767b; --line:#2f3336; --link:#1d9bf0;
+      --shadow:0 4px 12px rgba(0,0,0,.5), 0 0 2px rgba(0,0,0,.35);
+      --btn-bg:#eff3f4; --btn-fg:#0f1419; --btn-hover:#d7dbdc; --btn-line:#536471; --danger-line:#67070f; }
+    :host([theme=dim]) { --line:#38444d; --shadow:0 0 15px rgba(101,119,134,.2), 0 0 3px 1px rgba(101,119,134,.15); }
     :host([theme=light]) { --bg:#fff; --fg:#0f1419; --dim:#536471; --line:#cfd9de;
-      --stroke:#cfd9de; --outer:rgba(0,0,0,.08); --btn-bg:#0f1419; --btn-fg:#fff; }
+      --shadow:0 0 15px rgba(101,119,134,.2), 0 0 3px 1px rgba(101,119,134,.15);
+      --btn-bg:#0f1419; --btn-fg:#fff; --btn-hover:#272c30; --btn-line:#cfd9de; --danger-line:#fdc9ce; }
     .card { width:${CARD_WIDTH}px; box-sizing:border-box; padding:16px; border-radius:16px;
-      background:var(--bg); color:var(--fg);
-      border:1px solid var(--stroke); box-shadow:0 0 0 1px var(--outer);
+      background:var(--bg); color:var(--fg); box-shadow:var(--shadow);
       font:15px/20px TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     a { color:inherit; text-decoration:none; } a:hover { text-decoration:underline; }
     .avatar { width:44px; height:44px; border-radius:50%; object-fit:cover; display:block; background:var(--line) center/cover; }
@@ -176,8 +195,9 @@
     .btn { border:1px solid transparent; border-radius:9999px; padding:0 12px; height:32px; min-width:88px; white-space:nowrap;
       font:700 15px TwitterChirp, -apple-system, sans-serif; cursor:pointer;
       background:var(--btn-bg); color:var(--btn-fg); }
-    .btn.on { background:transparent; color:var(--fg); border-color:var(--line); }
-    .btn.on:hover { color:#f4212e; border-color:#67070f; background:rgba(244,33,46,.1); }
+    .btn:not(.on):not([disabled]):hover { background:var(--btn-hover); }
+    .btn.on { background:transparent; color:var(--fg); border-color:var(--btn-line); }
+    .btn.on:hover { color:#f4212e; border-color:var(--danger-line); background:rgba(244,33,46,.1); }
     .btn { position:relative; overflow:hidden; isolation:isolate;
       transition:transform 160ms ${EASE_OUT_CUBIC}, background-color 200ms, color 200ms; }
     .btn::before { content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit;
@@ -193,7 +213,7 @@
     .handle { color:var(--dim); display:flex; align-items:center; gap:4px; }
     .pill { font-size:12px; line-height:16px; padding:0 4px; border-radius:4px; background:var(--line); color:var(--dim); }
     .card { display:grid; grid-template-columns:auto 1fr; column-gap:10px;
-      grid-template-areas:"av who" "details details" "actions actions" "bio bio"; }
+      grid-template-areas:"av who" "details details" "actions actions" "bio bio" "known known"; }
     .av { grid-area:av; align-self:center; } .who { grid-area:who; align-self:center; min-width:0; }
     .details { grid-area:details; min-width:0; } .bio { grid-area:bio; min-width:0; }
     .actions { grid-area:actions; margin-top:12px; } [data-follow] { flex:1; }
@@ -201,6 +221,10 @@
     .bio a { color:var(--link); }
     .stats { margin-top:12px; display:flex; gap:20px; }
     .stats b { color:var(--fg); } .stats span { color:var(--dim); }
+    .known { grid-area:known; margin-top:12px; display:flex; align-items:center; gap:8px; color:var(--dim); font-size:13px; line-height:16px; }
+    .known img { width:20px; height:20px; border-radius:50%; border:2px solid var(--bg); flex:none; }
+    .known img + img { margin-left:-10px; }
+    .known .faces { display:flex; flex:none; }
     .sk { background:var(--line); border-radius:6px; animation:pulse 1.2s ease-in-out infinite; }
     .avatar.sk { border-radius:50%; }
     .sk-line { height:12px; margin-top:8px; } .sk-stats + .sk-line { margin-top:16px; }
@@ -209,14 +233,14 @@
     .actions { display:flex; gap:6px; flex:none; position:relative; }
     button.icon-btn { background:none; padding:0; cursor:pointer; }
     .menu { position:absolute; left:0; top:38px; z-index:1; min-width:180px; padding:4px; border-radius:12px;
-      background:var(--bg); border:1px solid var(--stroke); box-shadow:0 8px 24px rgba(0,0,0,.25); }
-    .menu button { display:block; width:100%; padding:8px 12px; border:0; border-radius:8px; background:none;
+      background:var(--bg); border:1px solid var(--line); box-shadow:var(--shadow); }
+    .menu button, .menu a { display:block; box-sizing:border-box; width:100%; padding:8px 12px; border:0; border-radius:8px; background:none;
       color:var(--fg); font:inherit; font-weight:700; text-align:left; cursor:pointer; }
-    .menu button:hover { background:rgba(127,127,127,.1); }
+    .menu button:hover, .menu a:hover { background:rgba(127,127,127,.1); text-decoration:none; }
     .menu .danger { color:#f4212e; }
-    .icon-btn { width:32px; height:32px; box-sizing:border-box; border:1px solid var(--line); border-radius:50%;
+    .icon-btn { width:32px; height:32px; box-sizing:border-box; border:1px solid var(--btn-line); border-radius:50%;
       display:flex; align-items:center; justify-content:center; color:var(--fg); }
-    .icon-btn:hover { background:rgba(127,127,127,.1); text-decoration:none; }
+    .icon-btn:hover { background:color-mix(in srgb, currentColor 10%, transparent); text-decoration:none; }
     .icon-btn svg { width:18px; height:18px; fill:currentColor; }
     @keyframes pulse { 50% { opacity:.5; } }
   </style><div class="card"></div>`;
@@ -242,12 +266,26 @@
     return html.replace(/(^|[^\w])@(\w{1,15})/g, '$1<a href="/$2" data-nav>@$2</a>');
   }
 
+  // X's wording: up to three names, or two names "and N others you follow".
+  function knownHtml(u) {
+    const k = followedBy.get(u.id);
+    if (!k?.total) return '';
+    const names = k.users.slice(0, 3).map((f) => esc(f.name));
+    const text = k.total > 3
+      ? `${names[0]}, ${names[1]}, and ${k.total - 2} others you follow`
+      : names.length === 3 ? `${names[0]}, ${names[1]}, and ${names[2]}` : names.join(' and ');
+    const faces = k.users.slice(0, 3)
+      .map((f, i) => `<img src="${esc(f.profile_image_url_https)}" style="z-index:${3 - i}">`).join('');
+    return `<a class="known" href="/${esc(u.screenName)}/followers_you_follow" data-nav><div class="faces">${faces}</div><div>Followed by ${text}</div></a>`;
+  }
+
   function render() {
     const u = state.user;
     if (!u) return;
     const btn = u.blocking ? 'Blocked' : u.iFollow ? 'Following' : u.followsMe ? 'Follow back' : 'Follow';
     const at = `@${esc(u.screenName)}`;
     const menu = state.menu ? `<div class="menu">
+      <a href="/i/grok?text=${encodeURIComponent(`@${u.screenName}`)}" data-nav>Profile summary</a>
       <button data-act="mute">${u.muting ? 'Unmute' : 'Mute'} ${at}</button>
       <button data-act="block" class="danger">${u.blocking ? 'Unblock' : state.confirm === 'block' ? 'Confirm block' : 'Block'} ${at}</button>
     </div>` : '';
@@ -278,7 +316,8 @@
         <div class="handle">@${esc(u.screenName)}${u.followsMe ? '<span class="pill">Follows you</span>' : ''}${u.muting ? '<span class="pill">Muted</span>' : ''}</div>
       </div>
       <div class="details">${details}</div>
-      ${u.bio && !u.loading ? `<div class="bio">${bioHtml(u)}</div>` : ''}`;
+      ${u.bio && !u.loading ? `<div class="bio">${bioHtml(u)}</div>` : ''}
+      ${u.loading ? '' : knownHtml(u)}`;
     if (hold) { holdButton()?.classList.add('holding'); hold.anims = fillButton(holdButton(), performance.now() - hold.start); }
     // Keep an already-loaded avatar across re-renders; fall back to the small cached size.
     const img = cardEl.querySelector('img.avatar');
@@ -290,7 +329,7 @@
   function theme() {
     const bg = getComputedStyle(document.body).backgroundColor;
     if (bg === 'rgb(255, 255, 255)') return 'light';
-    if (bg === 'rgb(21, 32, 43)') return 'dim';
+    if (bg === 'rgb(1, 12, 18)' || bg === 'rgb(21, 32, 43)') return 'dim'; // new and old Dim
     return 'dark';
   }
 
