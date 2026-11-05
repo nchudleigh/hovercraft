@@ -234,9 +234,9 @@
     button.icon-btn { background:none; padding:0; cursor:pointer; }
     .menu { position:absolute; left:0; top:38px; z-index:1; min-width:180px; padding:4px; border-radius:12px;
       background:var(--bg); border:1px solid var(--line); box-shadow:var(--shadow); }
-    .menu button { display:block; width:100%; padding:8px 12px; border:0; border-radius:8px; background:none;
+    .menu button, .menu a { display:block; box-sizing:border-box; width:100%; padding:8px 12px; border:0; border-radius:8px; background:none;
       color:var(--fg); font:inherit; font-weight:700; text-align:left; cursor:pointer; }
-    .menu button:hover { background:rgba(127,127,127,.1); }
+    .menu button:hover, .menu a:hover { background:rgba(127,127,127,.1); text-decoration:none; }
     .menu .danger { color:#f4212e; }
     .icon-btn { width:32px; height:32px; box-sizing:border-box; border:1px solid var(--btn-line); border-radius:50%;
       display:flex; align-items:center; justify-content:center; color:var(--fg); }
@@ -285,6 +285,7 @@
     const btn = u.blocking ? 'Blocked' : u.iFollow ? 'Following' : u.followsMe ? 'Follow back' : 'Follow';
     const at = `@${esc(u.screenName)}`;
     const menu = state.menu ? `<div class="menu">
+      <a href="/i/grok?text=${encodeURIComponent(`@${u.screenName}`)}" data-nav>Profile summary</a>
       <button data-act="mute">${u.muting ? 'Unmute' : 'Mute'} ${at}</button>
       <button data-act="block" class="danger">${u.blocking ? 'Unblock' : state.confirm === 'block' ? 'Confirm block' : 'Block'} ${at}</button>
     </div>` : '';
