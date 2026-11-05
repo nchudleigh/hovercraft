@@ -1,4 +1,4 @@
-// Mirrors popup settings onto <html> so card.js and card.css (page world) can see them.
+// Mirrors popup settings onto <html> so card.js, card.css and video.js can see them.
 const html = document.documentElement;
 const apply = (enabled) => (html.dataset.hovercraft = enabled === false ? 'off' : 'on');
 const applyBlast = (blast) => (html.dataset.hovercraftBlast = blast || 'party');

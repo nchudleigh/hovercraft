@@ -30,6 +30,7 @@ Hovercraft replaces it with a card that keeps up with your mouse.
 | 👋 **Gets out of the way** | Hides the moment you leave, unless you're heading into the card. |
 | ✊ **Hold to follow** | Press and hold a profile or its card for a second to follow. The Follow button fills as you hold. |
 | 💀 **Hold to block** | Hold the skull on a card to block that account. On a reply, the reply gets blasted off the timeline. Pick Party (confetti) or Laser (orbital strike) in the popup. |
+| ⏩ **Hold for 2×** | Press and hold a playing video to watch at 2× speed, like the phone app. Let go to return to normal. |
 | 📡 **No network wait** | Reads the profile data X already loaded for the page. |
 | 🎨 **Native look** | Follow button, verified badges, "Follows you", bio and counts. Matches Light, Dim and Lights out. |
 
